@@ -1,12 +1,36 @@
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { PageHeader } from "@/components/page-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, TrendingUp, Users, DollarSign, Calendar } from "lucide-react"
+"use client";
+
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { PageHeader } from "@/components/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Download,
+  TrendingUp,
+  Users,
+  DollarSign,
+  Calendar,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -21,7 +45,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from "recharts"
+} from "recharts";
 
 export default function AnalyticsPage() {
   const revenueData = [
@@ -31,14 +55,14 @@ export default function AnalyticsPage() {
     { month: "Apr", revenue: 280000, bookings: 15 },
     { month: "May", revenue: 310000, bookings: 18 },
     { month: "Jun", revenue: 290000, bookings: 16 },
-  ]
+  ];
 
   const serviceDistribution = [
     { name: "Wedding", value: 45, color: "#E1262C" },
     { name: "Corporate", value: 32, color: "#C8A64B" },
     { name: "Cultural", value: 28, color: "#91959C" },
     { name: "Other", value: 15, color: "#F3E5AB" },
-  ]
+  ];
 
   const staffPerformance = [
     { name: "Sarah M.", events: 24, rating: 4.9, revenue: 450000 },
@@ -46,13 +70,13 @@ export default function AnalyticsPage() {
     { name: "Emma W.", events: 19, rating: 4.7, revenue: 380000 },
     { name: "Michael C.", events: 18, rating: 4.9, revenue: 360000 },
     { name: "Lisa K.", events: 16, rating: 4.6, revenue: 320000 },
-  ]
+  ];
 
   const clientDemographics = [
     { category: "New Clients", count: 45 },
     { category: "Returning", count: 78 },
     { category: "VIP", count: 33 },
-  ]
+  ];
 
   return (
     <SidebarProvider>
@@ -84,7 +108,10 @@ export default function AnalyticsPage() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <PageHeader title="Business Analytics" description="Track performance, revenue, and engagement metrics" />
+          <PageHeader
+            title="Business Analytics"
+            description="Track performance, revenue, and engagement metrics"
+          />
 
           <Tabs defaultValue="overview" className="space-y-6">
             <TabsList>
@@ -100,19 +127,24 @@ export default function AnalyticsPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Total Revenue
+                    </CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">1,475,000 XAF</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-accent">+18.2%</span> from last period
+                      <span className="text-accent">+18.2%</span> from last
+                      period
                     </p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Total Bookings
+                    </CardTitle>
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -124,7 +156,9 @@ export default function AnalyticsPage() {
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Active Clients
+                    </CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -136,13 +170,16 @@ export default function AnalyticsPage() {
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
+                    <CardTitle className="text-sm font-medium">
+                      Avg. Order Value
+                    </CardTitle>
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">18,670 XAF</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className="text-accent">+5.4%</span> from last period
+                      <span className="text-accent">+5.4%</span> from last
+                      period
                     </p>
                   </CardContent>
                 </Card>
@@ -152,7 +189,9 @@ export default function AnalyticsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Revenue & Bookings Trend</CardTitle>
-                  <CardDescription>Monthly revenue and booking volume over time</CardDescription>
+                  <CardDescription>
+                    Monthly revenue and booking volume over time
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
@@ -168,8 +207,20 @@ export default function AnalyticsPage() {
                         }}
                       />
                       <Legend />
-                      <Line type="monotone" dataKey="revenue" stroke="#E1262C" strokeWidth={2} name="Revenue (XAF)" />
-                      <Line type="monotone" dataKey="bookings" stroke="#C8A64B" strokeWidth={2} name="Bookings" />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#E1262C"
+                        strokeWidth={2}
+                        name="Revenue (XAF)"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="bookings"
+                        stroke="#C8A64B"
+                        strokeWidth={2}
+                        name="Bookings"
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -180,7 +231,9 @@ export default function AnalyticsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Service Distribution</CardTitle>
-                    <CardDescription>Breakdown of bookings by service type</CardDescription>
+                    <CardDescription>
+                      Breakdown of bookings by service type
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={250}>
@@ -190,7 +243,9 @@ export default function AnalyticsPage() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }: any) =>
+                            `${name} ${(percent * 100).toFixed(0)}%`
+                          }
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
@@ -215,7 +270,9 @@ export default function AnalyticsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Client Demographics</CardTitle>
-                    <CardDescription>Client segmentation and distribution</CardDescription>
+                    <CardDescription>
+                      Client segmentation and distribution
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={250}>
@@ -242,7 +299,9 @@ export default function AnalyticsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Revenue Analysis</CardTitle>
-                  <CardDescription>Detailed revenue breakdown and trends</CardDescription>
+                  <CardDescription>
+                    Detailed revenue breakdown and trends
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={400}>
@@ -258,7 +317,11 @@ export default function AnalyticsPage() {
                         }}
                       />
                       <Legend />
-                      <Bar dataKey="revenue" fill="#E1262C" name="Revenue (XAF)" />
+                      <Bar
+                        dataKey="revenue"
+                        fill="#E1262C"
+                        name="Revenue (XAF)"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -269,20 +332,36 @@ export default function AnalyticsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Service Performance</CardTitle>
-                  <CardDescription>Most requested services and their revenue contribution</CardDescription>
+                  <CardDescription>
+                    Most requested services and their revenue contribution
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     {serviceDistribution.map((service) => (
-                      <div key={service.name} className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-lg" style={{ backgroundColor: service.color }} />
+                      <div
+                        key={service.name}
+                        className="flex items-center gap-4"
+                      >
+                        <div
+                          className="h-10 w-10 rounded-lg"
+                          style={{ backgroundColor: service.color }}
+                        />
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{service.name} Services</p>
-                          <p className="text-xs text-muted-foreground">{service.value} bookings</p>
+                          <p className="text-sm font-medium">
+                            {service.name} Services
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {service.value} bookings
+                          </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{((service.value / 120) * 100).toFixed(1)}%</p>
-                          <p className="text-xs text-muted-foreground">of total</p>
+                          <p className="text-sm font-medium">
+                            {((service.value / 120) * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            of total
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -295,7 +374,9 @@ export default function AnalyticsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Staff Performance</CardTitle>
-                  <CardDescription>Top performing staff members by events and revenue</CardDescription>
+                  <CardDescription>
+                    Top performing staff members by events and revenue
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -314,8 +395,12 @@ export default function AnalyticsPage() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-medium">{staff.revenue.toLocaleString()} XAF</p>
-                          <p className="text-xs text-muted-foreground">revenue generated</p>
+                          <p className="text-sm font-medium">
+                            {staff.revenue.toLocaleString()} XAF
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            revenue generated
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -329,7 +414,9 @@ export default function AnalyticsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Client Growth</CardTitle>
-                    <CardDescription>New vs returning clients over time</CardDescription>
+                    <CardDescription>
+                      New vs returning clients over time
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={250}>
@@ -353,7 +440,9 @@ export default function AnalyticsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Client Retention</CardTitle>
-                    <CardDescription>Client loyalty and repeat booking rate</CardDescription>
+                    <CardDescription>
+                      Client loyalty and repeat booking rate
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -391,5 +480,5 @@ export default function AnalyticsPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
