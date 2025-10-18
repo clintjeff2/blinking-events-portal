@@ -10,6 +10,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Document ID:** Auto-generated UID (matches Firebase Auth UID).
 
 ### Fields:
+
 - `uid` (string): Firebase Auth UID (redundant, but often helpful)
 - `role` (string): `'client' | 'admin' | 'staff'`
 - `fullName` (string)
@@ -17,15 +18,17 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `phone` (string)
 - `avatarUrl` (string, optional)
 - `createdAt` (timestamp)
-- `favorites` (array of {type: string, refId: string}): List of favorited services or staff.  
+- `favorites` (array of {type: string, refId: string}): List of favorited services or staff.
   - Example: [{ type: "service", refId: "serviceId1" }, { type: "staff", refId: "staffId3" }]
 - `notificationTokens` (array of string, optional): For push notifications
 - `isActive` (boolean): For soft deletes or bans
 
 #### For Staff/Admins (if role is `'staff'`):
+
 - `staffProfileId` (string): Reference to `staffProfiles` document
 
 #### For Admins (if role is `'admin'`):
+
 - `permissions` (array of string): e.g., `["service_management", "order_management"]`
 
 ---
@@ -35,12 +38,13 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Stores all service offerings.
 
 ### Fields:
+
 - `serviceId` (string, auto-id)
 - `name` (string)
 - `category` (string): e.g., `'wedding'`, `'corporate'`, `'cultural'`
 - `description` (string)
 - `priceRange` (object): `{ min: number, max: number }`
-- `packages` (array of objects):  
+- `packages` (array of objects):
   - `{ name: string, features: array of string, price: number, description: string, image: string }`
 - `images` (array of string): URLs
 - `isActive` (boolean)
@@ -56,6 +60,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Stores detailed info about all service staff.
 
 ### Fields:
+
 - `staffProfileId` (string, auto-id)
 - `fullName` (string)
 - `photoUrl` (string)
@@ -64,9 +69,9 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `qualifications` (array of string)
 - `languages` (array of string)
 - `categories` (array of string): e.g., [`'hostess'`, `'MC'`, `'security'`]
-- `availability` (array of date ranges):  
+- `availability` (array of date ranges):
   - `{ from: timestamp, to: timestamp }`
-- `portfolio` (array of { eventId: string, description: string, media: array of string })
+- `portfolio` (array of { eventName: string, description: string, media: array of string })
 - `rating` (number, avg)
 - `reviews` (array of { userId: string, rating: number, comment: string, createdAt: timestamp })
 - `contact` (object): `{ phone: string, email: string }`
@@ -81,6 +86,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Client event requests, quotes, and order management.
 
 ### Fields:
+
 - `orderId` (string, auto-id)
 - `clientId` (string): Reference to `users.uid`
 - `servicesRequested` (array of { serviceId: string, packageId: string, quantity: number })
@@ -93,7 +99,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `budgetRange` (object): `{ min: number, max: number }`
 - `documents` (array of string): URLs to uploaded docs
 - `status` (string): `'pending' | 'quoted' | 'confirmed' | 'completed' | 'cancelled'`
-- `quote` (object, optional):  
+- `quote` (object, optional):
   - `{ total: number, breakdown: array of { item: string, amount: number }, sentAt: timestamp }`
 - `timeline` (array of { milestone: string, date: timestamp, status: string })
 - `messages` (subcollection, see below)
@@ -102,6 +108,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `updatedAt` (timestamp)
 
 #### Subcollection: `messages`
+
 - Stores chat between client and admin/staff for this order
   - `messageId` (string)
   - `senderId` (string)
@@ -117,6 +124,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Stores all gallery media and portfolios.
 
 ### Fields:
+
 - `mediaId` (string, auto-id)
 - `type` (string): `'image' | 'video' | '360'`
 - `url` (string)
@@ -137,6 +145,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Past events for gallery, testimonials, analytics.
 
 ### Fields:
+
 - `eventId` (string, auto-id)
 - `name` (string)
 - `date` (timestamp)
@@ -157,6 +166,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Push notifications and in-app alerts (per user).
 
 ### Fields:
+
 - `notificationId` (string, auto-id)
 - `userId` (string)
 - `title` (string)
@@ -173,6 +183,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** App support and help articles.
 
 ### Fields:
+
 - `faqId` (string, auto-id)
 - `question` (string)
 - `answer` (string)
@@ -187,6 +198,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Global app settings, marketing banners, offers.
 
 ### Fields:
+
 - `configId` (string, e.g., `'marketing'`, `'settings'`)
 - `banners` (array of { image: string, link: string, text: string })
 - `specialOffers` (array of { title: string, description: string, validFrom: timestamp, validTo: timestamp })
@@ -200,6 +212,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Track app usage, engagement, revenue, etc.
 
 ### Fields:
+
 - `analyticId` (string, auto-id)
 - `type` (string): `'booking' | 'revenue' | 'activity' | 'push'`
 - `metric` (string)
@@ -215,6 +228,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 **Purpose:** Client testimonials for marketing.
 
 ### Fields:
+
 - `testimonialId` (string, auto-id)
 - `clientId` (string)
 - `eventId` (string, optional)
