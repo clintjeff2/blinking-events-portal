@@ -43,9 +43,9 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `name` (string)
 - `category` (string): e.g., `'wedding'`, `'corporate'`, `'cultural'`
 - `description` (string)
-- `priceRange` (object): `{ min: number, max: number }`
+- `priceRange` (object): `{ min: number, max: number, currency: string }` (default currency: 'XAF')
 - `packages` (array of objects):
-  - `{ name: string, features: array of string, price: number, description: string, image: string }`
+  - `{ name: string, features: array of string, price: number, description: string }`
 - `images` (array of string): URLs
 - `isActive` (boolean)
 - `createdAt` (timestamp)
@@ -126,17 +126,21 @@ This document defines all Firebase Firestore collections, their fields, data str
 ### Fields:
 
 - `mediaId` (string, auto-id)
-- `type` (string): `'image' | 'video' | '360'`
-- `url` (string)
-- `thumbnailUrl` (string, optional)
-- `category` (string): e.g., `'wedding'`, `'corporate'`
-- `eventId` (string, optional): Reference to event/order
-- `beforeAfter` (object, optional): `{ beforeUrl: string, afterUrl: string }`
+- `title` (string): Media title/name
+- `url` (array of strings): Array of media file URLs (images, videos, documents, etc.)
+- `thumbnailUrl` (string): Thumbnail image URL (can be selected from uploaded media or auto-generated)
+- `category` (string): e.g., `'wedding'`, `'corporate'`, `'cultural'`
+- `eventId` (string, optional): Reference to events
 - `uploadedBy` (string): userId/adminId
 - `uploadedAt` (timestamp)
-- `description` (string)
-- `isFeatured` (boolean)
-- `tags` (array of string)
+- `description` (string): Media description
+- `isFeatured` (boolean): Whether to feature this media prominently
+- `tags` (array of string): Search/filter tags
+- `isActive` (boolean): For soft deletes
+- `createdAt` (timestamp): Document creation timestamp
+- `updatedAt` (timestamp, optional): Last update timestamp
+
+**Note:** The `beforeAfter` field has been removed. Media type (image, video, PDF, etc.) is determined by individual file types in the `url` array, not stored as a separate field.
 
 ---
 
@@ -153,7 +157,6 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `category` (string)
 - `servicesUsed` (array of serviceId)
 - `staffInvolved` (array of staffProfileId)
-- `media` (array of mediaId)
 - `description` (string)
 - `testimonials` (array of { clientId: string, text: string, rating: number, createdAt: timestamp })
 - `isPublished` (boolean)
@@ -193,7 +196,45 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 9. App Config Collection (`appConfig`)
+## 9. Marketing Collection (`marketing`)
+
+**Purpose:** Manage promotional offers, banners, and featured content for marketing campaigns.
+
+### Subcollections:
+
+#### 9.1 Special Offers (`marketing/offers/offers`)
+
+- `offerId` (string, auto-id)
+- `title` (string): Offer title/name
+- `description` (string): Detailed description of the offer
+- `discount` (string): Discount amount or percentage (e.g., "15%", "50,000 XAF")
+- `validFrom` (timestamp): When the offer becomes active
+- `validTo` (timestamp): When the offer expires
+- `isActive` (boolean): Whether the offer is currently active
+- `redemptions` (number): Number of times the offer has been used
+- `terms` (string, optional): Terms and conditions
+- `category` (string, optional): Type of offer (e.g., 'wedding', 'corporate', 'general')
+- `createdAt` (timestamp)
+- `updatedAt` (timestamp)
+
+#### 9.2 Marketing Banners (`marketing/banners/banners`)
+
+- `bannerId` (string, auto-id)
+- `title` (string): Banner title/name
+- `imageUrl` (string): URL to banner image (stored in Cloudinary: `blinking-events/marketing/banners/`)
+- `link` (string): Target URL when banner is clicked
+- `position` (string): Where banner appears (e.g., 'Home Hero', 'Services Page')
+- `isActive` (boolean): Whether banner is currently displayed
+- `order` (number): Display order/priority
+- `description` (string, optional): Banner description
+- `createdAt` (timestamp)
+- `updatedAt` (timestamp)
+- `createdAt` (timestamp)
+- `updatedAt` (timestamp)
+
+---
+
+## 10. App Config Collection (`appConfig`)
 
 **Purpose:** Global app settings, marketing banners, offers.
 
@@ -207,7 +248,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 10. Analytics Collection (`analytics`)
+## 11. Analytics Collection (`analytics`)
 
 **Purpose:** Track app usage, engagement, revenue, etc.
 
@@ -223,7 +264,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 11. Testimonials Collection (`testimonials`)
+## 12. Testimonials Collection (`testimonials`)
 
 **Purpose:** Client testimonials for marketing.
 
