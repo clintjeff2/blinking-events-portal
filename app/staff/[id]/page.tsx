@@ -45,13 +45,15 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { EditStaffModal } from "@/components/edit-staff-modal";
+import { MediaPreview } from "@/components/media-preview";
 import { format } from "date-fns";
 import {
   useGetStaffByIdQuery,
   useDeleteStaffMutation,
-  useHardDeleteStaffMutation,
+  useUpdateStaffMutation,
 } from "@/lib/redux/api/staffApi";
 import { deleteFile } from "@/lib/cloudinary/upload";
+import { getMediaType } from "@/lib/utils/media";
 
 export default function StaffDetailPage({
   params,
@@ -62,7 +64,7 @@ export default function StaffDetailPage({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  // Fetch staff data
+  // Fetch staff data from Firebase
   const {
     data: staff,
     isLoading,
@@ -71,10 +73,9 @@ export default function StaffDetailPage({
     refetch,
   } = useGetStaffByIdQuery(params.id);
 
-  // Delete mutations
+  // Delete and update mutations
   const [deleteStaff, { isLoading: isDeleting }] = useDeleteStaffMutation();
-  const [hardDeleteStaff, { isLoading: isHardDeleting }] =
-    useHardDeleteStaffMutation();
+  const [updateStaff, { isLoading: isUpdating }] = useUpdateStaffMutation();
 
   // Handle delete
   const handleDelete = async () => {
@@ -130,10 +131,14 @@ export default function StaffDetailPage({
     return url;
   };
 
-  // Handle edit
+  // Handle edit/update
   const handleUpdate = async (updatedData: any) => {
     try {
-      // The EditStaffModal will handle the actual update API call
+      await updateStaff({
+        id: params.id,
+        data: updatedData,
+      }).unwrap();
+
       toast.success("Staff profile updated successfully");
       await refetch(); // Refresh data after update
       setEditModalOpen(false);
@@ -145,418 +150,433 @@ export default function StaffDetailPage({
   // If loading
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading staff details...</span>
-      </div>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <div className="flex items-center justify-center h-screen">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2">Loading staff details...</span>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
     );
   }
 
   // If error
   if (isError || !staff) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <Button
-          variant="outline"
-          onClick={() => router.push("/staff")}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to Staff
-        </Button>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <div className="p-6 max-w-4xl mx-auto">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/staff")}
+              className="mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Staff
+            </Button>
 
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error
-              ? `Error: ${JSON.stringify(error)}`
-              : "Staff member not found"}
-          </AlertDescription>
-        </Alert>
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error
+                  ? `Error: ${JSON.stringify(error)}`
+                  : "Staff member not found"}
+              </AlertDescription>
+            </Alert>
 
-        <Button onClick={() => refetch()}>Retry</Button>
-      </div>
+            <Button onClick={() => refetch()}>Retry</Button>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
     );
   }
 
+  // Calculate stats
+  const eventsCompleted = staff.portfolio?.length || 0;
+  const reviewCount = staff.reviews?.length || 0;
+  const avgRating = staff.rating || 0;
+
   return (
     <SidebarProvider>
-      <div className="h-screen overflow-hidden w-full">
-        <div className="grid sm:grid-cols-5 h-full w-full">
-          {/* Sidebar */}
-          <div className="hidden sm:block">
-            <AppSidebar />
-          </div>
-
-          {/* Mobile Sidebar Trigger */}
-          <div className="sm:hidden fixed bottom-6 right-6 z-40">
-            <SidebarTrigger>
-              <Button size="icon" className="rounded-full shadow-lg">
-                <Briefcase className="h-5 w-5" />
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-6">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <div className="flex flex-1 items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/staff")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
               </Button>
-            </SidebarTrigger>
-          </div>
-
-          {/* Main content */}
-          <div className="sm:col-span-4 h-full overflow-y-auto w-full">
-            <div className="p-4 md:p-6 max-w-full">
-              {/* Top Navigation */}
-              <div className="flex items-center justify-between mb-6">
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/staff")}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Staff
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditModalOpen(true)}
-                    disabled={isDeleting || isHardDeleting}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setDeleteDialogOpen(true)}
-                    disabled={isDeleting || isHardDeleting}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-
-              {/* Staff Profile Header */}
-              <Card className="mb-6 w-full">
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                    <Avatar className="h-32 w-32 border">
-                      <AvatarImage
-                        src={staff.photoUrl || "/placeholder-user.jpg"}
-                        alt={staff.fullName}
-                      />
-                      <AvatarFallback>
-                        {staff.fullName.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex-1">
-                      <h1 className="text-3xl font-bold mb-2">
-                        {staff.fullName}
-                      </h1>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {staff.categories.map((category, i) => (
-                          <Badge key={i} variant="outline">
-                            {category}
-                          </Badge>
-                        ))}
-                      </div>
-                      <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-amber-500" />
-                          <span>
-                            {staff.rating.toFixed(1)} ({staff.reviews.length}{" "}
-                            reviews)
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          <span>
-                            Joined{" "}
-                            {staff.createdAt instanceof Date
-                              ? format(staff.createdAt, "MMM yyyy")
-                              : "Recently"}
-                          </span>
-                        </div>
-                        {staff.isActive ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-green-50 text-green-700 border-green-300"
-                          >
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="bg-red-50 text-red-700 border-red-300"
-                          >
-                            Inactive
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Tabs */}
-              <Tabs defaultValue="about" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="about">About</TabsTrigger>
-                  <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
-                  <TabsTrigger value="availability">Availability</TabsTrigger>
-                  <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                </TabsList>
-
-                {/* About Tab */}
-                <TabsContent value="about" className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Bio</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p>{staff.bio}</p>
-                    </CardContent>
-                  </Card>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Skills */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Briefcase className="h-5 w-5" />
-                          Skills
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {staff.skills.map((skill, i) => (
-                            <Badge key={i} variant="secondary">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Qualifications */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Award className="h-5 w-5" />
-                          Qualifications
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {staff.qualifications.map((qualification, i) => (
-                            <li key={i}>{qualification}</li>
-                          ))}
-                        </ul>
-                      </CardContent>
-                    </Card>
-
-                    {/* Languages */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Languages</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {staff.languages.map((language, i) => (
-                            <Badge key={i} variant="outline">
-                              {language}
-                            </Badge>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Contact */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <MessageSquare className="h-5 w-5" />
-                          Contact Information
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div>
-                          <span className="font-semibold block">Phone:</span>
-                          <span>{staff.contact.phone}</span>
-                        </div>
-                        <div>
-                          <span className="font-semibold block">Email:</span>
-                          <span>{staff.contact.email}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                {/* Portfolio Tab */}
-                <TabsContent value="portfolio">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Portfolio</CardTitle>
-                      <CardDescription>
-                        Past events and projects
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {staff.portfolio && staff.portfolio.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-8">
-                          {staff.portfolio.map((item, index) => (
-                            <Card key={index} className="overflow-hidden">
-                              <CardHeader>
-                                {item.eventName && (
-                                  <CardDescription>
-                                    {item.eventName}
-                                  </CardDescription>
-                                )}
-                                <CardTitle className="text-lg">
-                                  {item.description}
-                                </CardTitle>
-                              </CardHeader>
-
-                              <CardContent className="p-4">
-                                {item.media && item.media.length > 0 ? (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                    {item.media.map((mediaUrl, mediaIndex) => (
-                                      <div
-                                        key={mediaIndex}
-                                        className="aspect-video w-full overflow-hidden border rounded-md"
-                                      >
-                                        <img
-                                          src={mediaUrl}
-                                          alt={`${item.description} - media ${
-                                            mediaIndex + 1
-                                          }`}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.currentTarget.src =
-                                              "/placeholder.jpg";
-                                          }}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-muted-foreground italic">
-                                    No media available
-                                  </p>
-                                )}
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground text-center py-8">
-                          No portfolio items available
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Availability Tab */}
-                <TabsContent value="availability">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Availability</CardTitle>
-                      <CardDescription>
-                        Upcoming schedule and availability
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {staff.availability && staff.availability.length > 0 ? (
-                        <div className="space-y-4">
-                          {staff.availability.map((slot, index) => {
-                            const from =
-                              slot.from instanceof Date
-                                ? slot.from
-                                : new Date((slot.from as any).seconds * 1000);
-
-                            const to =
-                              slot.to instanceof Date
-                                ? slot.to
-                                : new Date((slot.to as any).seconds * 1000);
-
-                            return (
-                              <div
-                                key={index}
-                                className="flex items-center p-3 border rounded-lg"
-                              >
-                                <div className="flex-1">
-                                  <p className="font-medium">
-                                    {format(from, "MMMM d, yyyy")} -{" "}
-                                    {format(to, "MMMM d, yyyy")}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground text-center py-8">
-                          No availability information
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                {/* Reviews Tab */}
-                <TabsContent value="reviews">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Reviews</CardTitle>
-                      <CardDescription>
-                        Client feedback and ratings
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {staff.reviews && staff.reviews.length > 0 ? (
-                        <div className="space-y-4">
-                          {staff.reviews.map((review, index) => {
-                            const date =
-                              review.createdAt instanceof Date
-                                ? review.createdAt
-                                : new Date(
-                                    (review.createdAt as any).seconds * 1000
-                                  );
-
-                            return (
-                              <div
-                                key={index}
-                                className="p-4 border rounded-lg"
-                              >
-                                <div className="flex justify-between items-start mb-2">
-                                  <div>
-                                    <p className="font-medium">
-                                      User #{review.userId}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {format(date, "MMMM d, yyyy")}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center">
-                                    <Star className="h-4 w-4 text-amber-500 mr-1" />
-                                    <span>{review.rating}</span>
-                                  </div>
-                                </div>
-                                <p>{review.comment}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <p className="text-muted-foreground text-center py-8">
-                          No reviews yet
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
+              <h2 className="text-lg font-semibold">Staff Profile</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditModalOpen(true)}
+                disabled={isDeleting || isUpdating}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+                disabled={isDeleting || isUpdating}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
             </div>
           </div>
+        </header>
+        <div className="flex flex-1 flex-col gap-6 p-6">
+          {/* Profile Header */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-6 md:flex-row md:items-start">
+                <Avatar className="h-32 w-32">
+                  <AvatarImage
+                    src={staff.photoUrl || "/placeholder.svg"}
+                    alt={staff.fullName}
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {staff.fullName
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-3xl font-bold">{staff.fullName}</h1>
+                      <Badge variant={staff.isActive ? "default" : "secondary"}>
+                        {staff.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Star className="h-5 w-5 fill-accent text-accent" />
+                      <span className="text-lg font-medium">
+                        {avgRating.toFixed(1)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        ({reviewCount} reviews)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {staff.categories.map((category) => (
+                      <Badge key={category} variant="outline">
+                        {category}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {staff.bio}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Events Completed
+                </CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{eventsCompleted}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Average Rating
+                </CardTitle>
+                <Star className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {avgRating.toFixed(1)}/5.0
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Reviews
+                </CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reviewCount}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Tabs defaultValue="details" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+              <TabsTrigger value="reviews">Reviews</TabsTrigger>
+              <TabsTrigger value="availability">Availability</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Skills & Expertise</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {staff.skills.map((skill) => (
+                        <Badge key={skill} variant="secondary">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Languages</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {staff.languages.map((language) => (
+                        <Badge key={language} variant="secondary">
+                          {language}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Qualifications</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2">
+                      {staff.qualifications.map((qual, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Award className="mt-0.5 h-4 w-4 text-accent" />
+                          <span className="text-sm">{qual}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Contact Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="text-sm font-medium">
+                        {staff.contact.phone}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium">
+                        {staff.contact.email}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="portfolio" className="space-y-6">
+              {staff.portfolio && staff.portfolio.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {staff.portfolio.map((item, index) => (
+                    <Card key={index}>
+                      <CardHeader>
+                        {item.eventName && (
+                          <CardDescription>{item.eventName}</CardDescription>
+                        )}
+                        <CardTitle className="text-lg">
+                          {item.description}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-2">
+                          {item.media && item.media.length > 0 ? (
+                            item.media.map((mediaUrl, mediaIndex) => {
+                              const mediaType = getMediaType(mediaUrl);
+                              return (
+                                <div
+                                  key={mediaIndex}
+                                  className={`w-full rounded-lg overflow-hidden ${
+                                    mediaType === "video" ? "h-64" : "h-48"
+                                  }`}
+                                >
+                                  <MediaPreview
+                                    src={mediaUrl || "/placeholder.svg"}
+                                    alt={`${item.description} - Media ${
+                                      mediaIndex + 1
+                                    }`}
+                                    className="h-full"
+                                    showControls={true}
+                                    muted={false}
+                                    loop={false}
+                                  />
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">
+                              No media available
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <p className="text-muted-foreground">
+                      No portfolio items available
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="reviews" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Reviews</CardTitle>
+                  <CardDescription>Feedback from past clients</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {staff.reviews && staff.reviews.length > 0 ? (
+                    <div className="space-y-6">
+                      {staff.reviews.map((review, index) => {
+                        const date =
+                          review.createdAt instanceof Date
+                            ? review.createdAt
+                            : new Date(
+                                (review.createdAt as any).seconds * 1000
+                              );
+
+                        return (
+                          <div
+                            key={index}
+                            className="border-b border-border pb-6 last:border-0 last:pb-0"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium">
+                                  User #{review.userId}
+                                </p>
+                                <div className="mt-1 flex items-center gap-1">
+                                  {Array.from({ length: 5 }).map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-4 w-4 ${
+                                        i < review.rating
+                                          ? "fill-accent text-accent"
+                                          : "text-muted"
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                              <span className="text-sm text-muted-foreground">
+                                {format(date, "MMMM d, yyyy")}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                              {review.comment}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">
+                      No reviews yet
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="availability" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Availability Calendar</CardTitle>
+                  <CardDescription>
+                    Upcoming bookings and available dates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {staff.availability && staff.availability.length > 0 ? (
+                    <div className="space-y-4">
+                      {staff.availability.map((slot, index) => {
+                        const from =
+                          slot.from instanceof Date
+                            ? slot.from
+                            : new Date((slot.from as any).seconds * 1000);
+
+                        const to =
+                          slot.to instanceof Date
+                            ? slot.to
+                            : new Date((slot.to as any).seconds * 1000);
+
+                        return (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between rounded-lg border border-border p-4"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">
+                                  {format(from, "MMMM d, yyyy")} -{" "}
+                                  {format(to, "MMMM d, yyyy")}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-8">
+                      No availability information
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
-      </div>
+      </SidebarInset>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -600,11 +620,6 @@ export default function StaffDetailPage({
           staff={staff}
         />
       )}
-
-      {/* Mobile Sidebar Content */}
-      <SidebarInset className="py-6">
-        <AppSidebar />
-      </SidebarInset>
     </SidebarProvider>
   );
 }
