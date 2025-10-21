@@ -196,8 +196,7 @@ export function AddStaffModal({
             setPortfolioUploadProgress(overallProgress);
           }
         );
-        // Use secureUrl for HTTPS
-        uploadedUrls.push(result.secureUrl || result.url);
+        uploadedUrls.push(result.url);
       }
 
       setPortfolioForm({ ...portfolioForm, media: uploadedUrls });
@@ -216,27 +215,26 @@ export function AddStaffModal({
       return;
     }
 
+    // Upload media if files are selected but not uploaded
+    if (portfolioMediaFiles.length > 0 && portfolioForm.media.length === 0) {
+      await handleUploadPortfolioMedia();
+      return;
+    }
+
     const newPortfolio: PortfolioItem = {
       eventName: portfolioForm.eventName || "",
       description: portfolioForm.description,
       media: portfolioForm.media,
     };
 
-    // We'll keep the selected files for upload during form submission
-    // But we'll show previews of the selected files immediately
-
     setFormData({
       ...formData,
       portfolio: [...formData.portfolio, newPortfolio],
     });
 
-    // Reset portfolio form but keep media files for final submission
+    // Reset portfolio form
     setPortfolioForm({ eventName: "", description: "", media: [] });
-
-    // Don't clear media files until final submission
-    // This keeps them available for the actual upload
-    // setPortfolioMediaFiles([]);
-
+    setPortfolioMediaFiles([]);
     setPortfolioUploadProgress(0);
     toast.success("Portfolio item added");
   };
@@ -332,8 +330,8 @@ export function AddStaffModal({
         }
       );
 
-      // Update form data with uploaded URL (use secure URL)
-      setFormData({ ...formData, photoUrl: result.secureUrl || result.url });
+      // Update form data with uploaded URL
+      setFormData({ ...formData, photoUrl: result.url });
       toast.success("Photo uploaded successfully!");
     } catch (error: any) {
       console.error("Upload error:", error);
@@ -372,88 +370,10 @@ export function AddStaffModal({
       return;
     }
 
-    try {
-      // Show loading toast
-      const loadingToast = toast.loading("Creating staff profile...");
-
-      // Upload photo if selected
-      if (selectedFile && !formData.photoUrl) {
-        setIsUploading(true);
-        setUploadProgress(0);
-
-        try {
-          // Upload to Cloudinary with progress tracking
-          const result = await uploadFileClient(
-            selectedFile,
-            CloudinaryPaths.staff("temp"),
-            (progress) => {
-              setUploadProgress(Math.round(progress));
-            }
-          );
-
-          // Update form data with uploaded URL
-          formData.photoUrl = result.secureUrl || result.url;
-        } catch (error: any) {
-          console.error("Upload error:", error);
-          toast.dismiss(loadingToast);
-          toast.error(
-            `Failed to upload profile photo: ${
-              error.message || "Unknown error"
-            }`
-          );
-          return;
-        } finally {
-          setIsUploading(false);
-        }
-      }
-
-      // Upload any pending portfolio media
-      for (const portfolioItem of formData.portfolio) {
-        if (
-          portfolioItem.media.length === 0 &&
-          portfolioMediaFiles.length > 0
-        ) {
-          setPortfolioUploading(true);
-
-          try {
-            const uploadedUrls: string[] = [];
-
-            for (let i = 0; i < portfolioMediaFiles.length; i++) {
-              const file = portfolioMediaFiles[i];
-              const result = await uploadFileClient(
-                file,
-                CloudinaryPaths.staff("temp"),
-                (progress) => {
-                  const overallProgress = Math.round(
-                    ((i + progress / 100) / portfolioMediaFiles.length) * 100
-                  );
-                  setPortfolioUploadProgress(overallProgress);
-                }
-              );
-              uploadedUrls.push(result.secureUrl || result.url);
-            }
-
-            // Add the URLs to portfolio media
-            portfolioItem.media = uploadedUrls;
-          } catch (error: any) {
-            console.error("Portfolio upload error:", error);
-            toast.dismiss(loadingToast);
-            toast.error(
-              `Failed to upload portfolio media: ${
-                error.message || "Unknown error"
-              }`
-            );
-            return;
-          } finally {
-            setPortfolioUploading(false);
-          }
-        }
-      }
-
-      // Dismiss loading toast
-      toast.dismiss(loadingToast);
-    } catch (error: any) {
-      toast.error(`Error processing uploads: ${error.message}`);
+    // If file is selected but not uploaded, upload it first
+    if (selectedFile && !formData.photoUrl) {
+      toast.warning("Uploading photo first...");
+      await handleUploadPhoto();
       return;
     }
 
@@ -580,6 +500,16 @@ export function AddStaffModal({
                           disabled={isUploading}
                           className="flex-1"
                         />
+                        {selectedFile && !isUploading && (
+                          <Button
+                            type="button"
+                            onClick={handleUploadPhoto}
+                            size="sm"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload
+                          </Button>
+                        )}
                       </div>
 
                       {/* Upload Progress */}
@@ -852,17 +782,12 @@ export function AddStaffModal({
                       {portfolioForm.media.map((url, idx) => (
                         <div
                           key={idx}
-                          className="relative aspect-video border rounded-lg overflow-hidden bg-muted"
+                          className="relative aspect-video border rounded-lg overflow-hidden"
                         >
                           <img
                             src={url}
                             alt={`Portfolio media ${idx + 1}`}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error("Image load error:", url);
-                              e.currentTarget.src = "/placeholder.jpg";
-                            }}
-                            onLoad={() => console.log("Image loaded:", url)}
                           />
                         </div>
                       ))}
@@ -909,6 +834,17 @@ export function AddStaffModal({
                         onChange={handlePortfolioMediaSelect}
                         disabled={portfolioUploading}
                       />
+                      {portfolioMediaFiles.length > 0 &&
+                        !portfolioUploading && (
+                          <Button
+                            type="button"
+                            onClick={handleUploadPortfolioMedia}
+                            size="sm"
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Upload
+                          </Button>
+                        )}
                     </div>
 
                     {portfolioUploading && (
