@@ -1,86 +1,119 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { PageHeader } from "@/components/page-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Calendar, MapPin, Users, Star, Eye } from "lucide-react"
-import Link from "next/link"
-import { AddEventModal } from "@/components/add-event-modal"
+import { useState } from "react";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { PageHeader } from "@/components/page-header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Plus,
+  Search,
+  Calendar,
+  MapPin,
+  Users,
+  Star,
+  Eye,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import { AddEventModal } from "@/components/add-event-modal";
+import {
+  useGetEventsQuery,
+  useDeleteEventMutation,
+} from "@/lib/redux/api/eventsApi";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
 
 export default function EventsPage() {
-  const [showAddModal, setShowAddModal] = useState(false)
+  const { toast } = useToast();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
-  const events = [
-    {
-      id: "1",
-      name: "Johnson-Williams Wedding",
-      date: "2024-12-20",
-      venue: "Grand Hotel Ballroom",
-      category: "Wedding",
-      servicesUsed: ["Premium Wedding Package", "Photography"],
-      staffInvolved: ["Sarah M.", "John D.", "Emma W."],
-      guestCount: 250,
-      isPublished: true,
-      testimonials: 2,
-      mediaCount: 45,
-      rating: 5.0,
-    },
-    {
-      id: "2",
-      name: "TechCorp Annual Conference",
-      date: "2024-12-15",
-      venue: "Conference Center",
-      category: "Corporate",
-      servicesUsed: ["Corporate Event Management"],
-      staffInvolved: ["Michael C.", "Lisa K."],
-      guestCount: 150,
-      isPublished: true,
-      testimonials: 1,
-      mediaCount: 32,
-      rating: 4.8,
-    },
-    {
-      id: "3",
-      name: "Traditional Naming Ceremony",
-      date: "2024-12-10",
-      venue: "Cultural Center",
-      category: "Cultural",
-      servicesUsed: ["Cultural Ceremony Services"],
-      staffInvolved: ["Emma W.", "Sarah M."],
-      guestCount: 180,
-      isPublished: true,
-      testimonials: 1,
-      mediaCount: 28,
-      rating: 4.9,
-    },
-    {
-      id: "4",
-      name: "Martinez 50th Birthday Celebration",
-      date: "2024-12-05",
-      venue: "Private Garden",
-      category: "Social",
-      servicesUsed: ["Birthday Party Planning"],
-      staffInvolved: ["John D.", "Lisa K."],
-      guestCount: 80,
-      isPublished: false,
-      testimonials: 0,
-      mediaCount: 18,
-      rating: 0,
-    },
-  ]
+  // Fetch events
+  const { data: events = [], isLoading, refetch } = useGetEventsQuery({});
+  const [deleteEvent] = useDeleteEventMutation();
 
-  const categories = ["All", "Wedding", "Corporate", "Cultural", "Social"]
+  const handleDeleteClick = (eventId: string) => {
+    setEventToDelete(eventId);
+    setDeleteDialogOpen(true);
+  };
 
-  const handleAddEvent = (data: any) => {
-    console.log("[v0] New event data:", data)
-    // TODO: Integrate with Firebase
-  }
+  const handleDeleteConfirm = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      await deleteEvent(eventToDelete).unwrap();
+      toast({
+        title: "Event deleted",
+        description: "The event has been deleted successfully",
+      });
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter events
+  const filteredEvents = events.filter((event) => {
+    const matchesCategory =
+      selectedCategory === "All" ||
+      event.category.toLowerCase() === selectedCategory.toLowerCase();
+    const matchesSearch =
+      searchQuery === "" ||
+      event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Calculate average rating from testimonials
+  const getAverageRating = (testimonials: any[]) => {
+    if (!testimonials || testimonials.length === 0) return 0;
+    const sum = testimonials.reduce((acc, t) => acc + (t.rating || 0), 0);
+    return sum / testimonials.length;
+  };
+
+  const categories = [
+    "All",
+    "Wedding",
+    "Corporate",
+    "Cultural",
+    "Birthday",
+    "Social",
+  ];
 
   return (
     <SidebarProvider>
@@ -98,7 +131,10 @@ export default function EventsPage() {
           </div>
         </header>
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <PageHeader title="Past Events" description="Showcase your portfolio and manage event testimonials" />
+          <PageHeader
+            title="Events Management"
+            description="Manage your past events and showcase your portfolio"
+          />
 
           {/* Filters */}
           <Card>
@@ -106,15 +142,22 @@ export default function EventsPage() {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="relative flex-1 md:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search events..." className="pl-9" />
+                  <Input
+                    placeholder="Search events..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((category) => (
                     <Button
                       key={category}
-                      variant={category === "All" ? "default" : "outline"}
+                      variant={
+                        category === selectedCategory ? "default" : "outline"
+                      }
                       size="sm"
-                      className="bg-transparent"
+                      onClick={() => setSelectedCategory(category)}
                     >
                       {category}
                     </Button>
@@ -124,77 +167,166 @@ export default function EventsPage() {
             </CardContent>
           </Card>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="grid gap-6 md:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-4 w-20 mt-2" />
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && filteredEvents.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <p className="text-muted-foreground">
+                  {searchQuery || selectedCategory !== "All"
+                    ? "No events found matching your criteria"
+                    : "No events yet. Add your first event!"}
+                </p>
+                {!searchQuery && selectedCategory === "All" && (
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    className="mt-4"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Event
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Events Grid */}
-          <div className="grid gap-6 md:grid-cols-2">
-            {events.map((event) => (
-              <Card key={event.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{event.name}</CardTitle>
-                      <CardDescription className="mt-1">
-                        <Badge variant="outline">{event.category}</Badge>
-                      </CardDescription>
-                    </div>
-                    <Badge variant={event.isPublished ? "default" : "secondary"}>
-                      {event.isPublished ? "Published" : "Draft"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>{event.date}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span>{event.venue}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{event.guestCount} guests</span>
-                    </div>
-                    {event.rating > 0 && (
-                      <div className="flex items-center gap-2">
-                        <Star className="h-4 w-4 fill-accent text-accent" />
-                        <span>{event.rating}/5.0</span>
-                      </div>
-                    )}
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Services Used</p>
-                    <p className="text-sm">{event.servicesUsed.join(", ")}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Staff Involved</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {event.staffInvolved.map((staff) => (
-                        <Badge key={staff} variant="secondary" className="text-xs">
-                          {staff}
+          {!isLoading && filteredEvents.length > 0 && (
+            <div className="grid gap-6 md:grid-cols-2">
+              {filteredEvents.map((event) => {
+                const avgRating = getAverageRating(event.testimonials);
+                const eventDate = event.date ? new Date(event.date) : null;
+
+                return (
+                  <Card key={event.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {event.name}
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            <Badge variant="outline">{event.category}</Badge>
+                          </CardDescription>
+                        </div>
+                        <Badge
+                          variant={event.isPublished ? "default" : "secondary"}
+                        >
+                          {event.isPublished ? "Published" : "Draft"}
                         </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{event.mediaCount} photos/videos</span>
-                    <span className="text-muted-foreground">{event.testimonials} testimonials</span>
-                  </div>
-                  <Link href={`/events/${event.id}`}>
-                    <Button variant="outline" className="w-full bg-transparent">
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Event
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>
+                            {eventDate ? format(eventDate, "PPP") : "No date"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <span>{event.venue}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>
+                            {event.staffInvolved?.length || 0} staff members
+                          </span>
+                        </div>
+                        {avgRating > 0 && (
+                          <div className="flex items-center gap-2">
+                            <Star className="h-4 w-4 fill-accent text-accent" />
+                            <span>{avgRating.toFixed(1)}/5.0</span>
+                          </div>
+                        )}
+                      </div>
+                      <Separator />
+                      <div>
+                        <p className="text-sm text-muted-foreground">
+                          Services Used
+                        </p>
+                        <p className="text-sm">
+                          {event.servicesUsed?.length || 0} service(s)
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {event.testimonials?.length || 0} testimonial(s)
+                        </span>
+                      </div>
+                      <div className="flex gap-2 pt-2 border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          asChild
+                        >
+                          <Link href={`/events/${event.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Event
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleDeleteClick(event.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </SidebarInset>
 
-      <AddEventModal open={showAddModal} onOpenChange={setShowAddModal} onSubmit={handleAddEvent} />
+      <AddEventModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onSubmit={refetch}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this event? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
-  )
+  );
 }
