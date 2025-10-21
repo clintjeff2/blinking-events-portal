@@ -1,15 +1,21 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { PageHeader } from "@/components/page-header"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useState } from "react";
+import Link from "next/link";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,102 +23,285 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Search, MoreVertical, Edit, Trash2, Eye, Star, Upload, ImageIcon, Video, Globe } from "lucide-react"
-import { AddMediaModal } from "@/components/add-media-modal"
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Search,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  Star,
+  Upload,
+  ImageIcon,
+  Video,
+  FileText,
+} from "lucide-react";
+import { AddMediaModal } from "@/components/add-media-modal";
+import { EditMediaModal } from "@/components/edit-media-modal";
+import {
+  useGetMediaQuery,
+  useDeleteMediaMutation,
+  useToggleFeaturedMutation,
+  MediaItem,
+} from "@/lib/redux/api/mediaApi";
+import { useToast } from "@/hooks/use-toast";
+import { getMediaType } from "@/lib/utils/media";
+import { MediaPreview } from "@/components/media-preview";
 
 export default function MediaPage() {
-  const [showUploadModal, setShowUploadModal] = useState(false)
+  const { toast } = useToast();
+  const {
+    data: allMedia = [],
+    isLoading,
+    isError,
+    error,
+  } = useGetMediaQuery({});
+  const [deleteMedia] = useDeleteMediaMutation();
+  const [toggleFeatured] = useToggleFeaturedMutation();
 
-  const handleUploadMedia = (data: any) => {
-    console.log("[v0] New media data:", data)
-    // TODO: Integrate with Firebase
-  }
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedType, setSelectedType] = useState("All");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [mediaToDelete, setMediaToDelete] = useState<string | null>(null);
 
-  const media = [
-    {
-      id: "1",
-      type: "image",
-      url: "/elegant-wedding-decoration.png",
-      thumbnailUrl: "/elegant-wedding-decoration.png",
-      category: "Wedding",
-      description: "Elegant wedding decoration with gold accents",
-      uploadedAt: "2025-01-15",
-      isFeatured: true,
-      tags: ["wedding", "decoration", "gold", "elegant"],
-    },
-    {
-      id: "2",
-      type: "image",
-      url: "/corporate-event.png",
-      thumbnailUrl: "/corporate-event.png",
-      category: "Corporate",
-      description: "Professional corporate event setup",
-      uploadedAt: "2025-01-14",
-      isFeatured: false,
-      tags: ["corporate", "professional", "conference"],
-    },
-    {
-      id: "3",
-      type: "video",
-      url: "/videos/wedding-highlight.mp4",
-      thumbnailUrl: "/wedding-video-thumbnail.png",
-      category: "Wedding",
-      description: "Wedding ceremony highlight reel",
-      uploadedAt: "2025-01-13",
-      isFeatured: true,
-      tags: ["wedding", "video", "ceremony"],
-    },
-    {
-      id: "4",
-      type: "image",
-      url: "/vibrant-cultural-ceremony.png",
-      thumbnailUrl: "/vibrant-cultural-ceremony.png",
-      category: "Cultural",
-      description: "Traditional cultural ceremony setup",
-      uploadedAt: "2025-01-12",
-      isFeatured: false,
-      tags: ["cultural", "traditional", "ceremony"],
-    },
-    {
-      id: "5",
-      type: "360",
-      url: "/360/venue-tour.jpg",
-      thumbnailUrl: "/360-venue-view.jpg",
-      category: "Wedding",
-      description: "360° venue tour - Grand Ballroom",
-      uploadedAt: "2025-01-11",
-      isFeatured: true,
-      tags: ["360", "venue", "tour", "ballroom"],
-    },
-    {
-      id: "6",
-      type: "image",
-      url: "/outdoor-wedding.jpg",
-      thumbnailUrl: "/outdoor-wedding.jpg",
-      category: "Wedding",
-      description: "Beautiful outdoor wedding ceremony",
-      uploadedAt: "2025-01-10",
-      isFeatured: false,
-      tags: ["wedding", "outdoor", "garden"],
-    },
-  ]
-
-  const categories = ["All", "Wedding", "Corporate", "Cultural", "Social"]
-  const types = ["All", "Images", "Videos", "360° Tours"]
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "image":
-        return <ImageIcon className="h-4 w-4" />
-      case "video":
-        return <Video className="h-4 w-4" />
-      case "360":
-        return <Globe className="h-4 w-4" />
-      default:
-        return <ImageIcon className="h-4 w-4" />
+  const handleToggleFeatured = async (id: string, currentStatus: boolean) => {
+    try {
+      await toggleFeatured({ id, isFeatured: !currentStatus }).unwrap();
+      toast({
+        description: currentStatus
+          ? "Removed from featured"
+          : "Added to featured",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        description: "Failed to update featured status",
+      });
     }
-  }
+  };
+
+  const handleEditClick = (media: MediaItem) => {
+    setSelectedMedia(media);
+    setShowEditModal(true);
+  };
+
+  const handleDeleteClick = (mediaId: string) => {
+    setMediaToDelete(mediaId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!mediaToDelete) return;
+
+    try {
+      await deleteMedia(mediaToDelete).unwrap();
+      toast({ description: "Media deleted successfully" });
+    } catch (error) {
+      toast({ variant: "destructive", description: "Failed to delete media" });
+    } finally {
+      setDeleteDialogOpen(false);
+      setMediaToDelete(null);
+    }
+  };
+
+  // Filter media
+  const filteredMedia = allMedia.filter((item) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+    const matchesCategory =
+      selectedCategory === "All" ||
+      item.category.toLowerCase() === selectedCategory.toLowerCase();
+
+    const matchesType =
+      selectedType === "All" ||
+      (() => {
+        const hasImages = item.url.some((url) => getMediaType(url) === "image");
+        const hasVideos = item.url.some((url) => getMediaType(url) === "video");
+
+        if (selectedType === "Images") return hasImages;
+        if (selectedType === "Videos") return hasVideos;
+        return true;
+      })();
+
+    return matchesSearch && matchesCategory && matchesType;
+  });
+
+  const categories = [
+    "All",
+    "Wedding",
+    "Corporate",
+    "Cultural",
+    "Social",
+    "Birthday",
+    "Other",
+  ];
+  const types = ["All", "Images", "Videos"];
+
+  const getMediaTypeIcon = (url: string) => {
+    const type = getMediaType(url);
+    if (type === "image") return <ImageIcon className="h-4 w-4" />;
+    if (type === "video") return <Video className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const renderMediaCard = (item: (typeof allMedia)[0]) => {
+    const thumbnailType = getMediaType(item.thumbnailUrl);
+
+    return (
+      <Card key={item.id} className="group relative overflow-hidden">
+        <Link href={`/media/${item.id}`}>
+          <div className="relative aspect-video overflow-hidden cursor-pointer bg-muted">
+            {/* Render thumbnail based on type */}
+            {thumbnailType === "image" && (
+              <img
+                src={item.thumbnailUrl || "/placeholder.svg"}
+                alt={item.title}
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
+            )}
+            {thumbnailType === "video" && (
+              <MediaPreview
+                src={item.thumbnailUrl}
+                alt={item.title}
+                className="h-full w-full object-cover"
+                showControls={false}
+                muted={true}
+                loop={true}
+              />
+            )}
+            {thumbnailType === "document" && (
+              <div className="h-full w-full flex items-center justify-center bg-muted">
+                <FileText className="h-12 w-12 text-muted-foreground" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="absolute right-2 top-2 flex gap-2">
+              {item.isFeatured && (
+                <Badge
+                  variant="secondary"
+                  className="bg-accent/90 text-accent-foreground"
+                >
+                  <Star className="mr-1 h-3 w-3 fill-current" />
+                  Featured
+                </Badge>
+              )}
+              <Badge variant="secondary" className="bg-background/90">
+                {getMediaTypeIcon(item.url[0])}
+                <span className="ml-1">
+                  {item.url.length} file{item.url.length > 1 ? "s" : ""}
+                </span>
+              </Badge>
+            </div>
+          </div>
+        </Link>
+        <CardContent className="pt-4">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <Link href={`/media/${item.id}`}>
+                  <h3 className="font-medium line-clamp-1 hover:underline cursor-pointer">
+                    {item.title}
+                  </h3>
+                </Link>
+                <p className="text-sm text-muted-foreground line-clamp-1">
+                  {item.description}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatDate(item.uploadedAt)}
+                </p>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={`/media/${item.id}`}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEditClick(item)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      handleToggleFeatured(item.id, item.isFeatured)
+                    }
+                  >
+                    <Star className="mr-2 h-4 w-4" />
+                    {item.isFeatured
+                      ? "Remove from Featured"
+                      : "Mark as Featured"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => handleDeleteClick(item.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs capitalize">
+                {item.category}
+              </Badge>
+            </div>
+            {item.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {item.tags.slice(0, 3).map((tag, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {item.tags.length > 3 && (
+                  <Badge variant="secondary" className="text-xs">
+                    +{item.tags.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <SidebarProvider>
@@ -129,8 +318,12 @@ export default function MediaPage() {
             </Button>
           </div>
         </header>
+
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <PageHeader title="Media Gallery" description="Manage your event portfolio, photos, videos, and 360° tours" />
+          <PageHeader
+            title="Media Gallery"
+            description="Manage your event portfolio, photos, videos, and documents"
+          />
 
           {/* Filters */}
           <Card>
@@ -138,17 +331,26 @@ export default function MediaPage() {
               <div className="flex flex-col gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search media by description or tags..." className="pl-9" />
+                  <Input
+                    placeholder="Search media by title, description or tags..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <div className="flex gap-2">
-                    <span className="text-sm text-muted-foreground">Category:</span>
+                    <span className="text-sm text-muted-foreground self-center">
+                      Category:
+                    </span>
                     {categories.map((category) => (
                       <Button
                         key={category}
-                        variant={category === "All" ? "default" : "outline"}
+                        variant={
+                          category === selectedCategory ? "default" : "outline"
+                        }
                         size="sm"
-                        className="bg-transparent"
+                        onClick={() => setSelectedCategory(category)}
                       >
                         {category}
                       </Button>
@@ -156,13 +358,15 @@ export default function MediaPage() {
                   </div>
                   <Separator orientation="vertical" className="h-8" />
                   <div className="flex gap-2">
-                    <span className="text-sm text-muted-foreground">Type:</span>
+                    <span className="text-sm text-muted-foreground self-center">
+                      Type:
+                    </span>
                     {types.map((type) => (
                       <Button
                         key={type}
-                        variant={type === "All" ? "default" : "outline"}
+                        variant={type === selectedType ? "default" : "outline"}
                         size="sm"
-                        className="bg-transparent"
+                        onClick={() => setSelectedType(type)}
                       >
                         {type}
                       </Button>
@@ -173,205 +377,138 @@ export default function MediaPage() {
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="all" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="all">All Media ({media.length})</TabsTrigger>
-              <TabsTrigger value="featured">Featured ({media.filter((m) => m.isFeatured).length})</TabsTrigger>
-              <TabsTrigger value="images">Images ({media.filter((m) => m.type === "image").length})</TabsTrigger>
-              <TabsTrigger value="videos">Videos ({media.filter((m) => m.type === "video").length})</TabsTrigger>
-              <TabsTrigger value="360">360° Tours ({media.filter((m) => m.type === "360").length})</TabsTrigger>
-            </TabsList>
+          {/* Loading State */}
+          {isLoading && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Card key={i}>
+                  <Skeleton className="aspect-video" />
+                  <CardContent className="pt-4 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
-            <TabsContent value="all" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {media.map((item) => (
-                  <Card key={item.id} className="group relative overflow-hidden">
-                    <div className="relative aspect-video overflow-hidden">
-                      <img
-                        src={item.thumbnailUrl || "/placeholder.svg"}
-                        alt={item.description}
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                      <div className="absolute right-2 top-2 flex gap-2">
-                        {item.isFeatured && (
-                          <Badge variant="secondary" className="bg-accent/90 text-accent-foreground">
-                            <Star className="mr-1 h-3 w-3 fill-current" />
-                            Featured
-                          </Badge>
-                        )}
-                        <Badge variant="secondary" className="bg-background/90">
-                          {getTypeIcon(item.type)}
-                          <span className="ml-1 capitalize">{item.type}</span>
-                        </Badge>
-                      </div>
-                      <div className="absolute bottom-2 left-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="secondary" className="flex-1">
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="secondary">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Star className="mr-2 h-4 w-4" />
-                                {item.isFeatured ? "Remove from Featured" : "Mark as Featured"}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </div>
-                    <CardContent className="pt-4">
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium line-clamp-1">{item.description}</p>
-                            <p className="text-sm text-muted-foreground">{item.uploadedAt}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            {item.category}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {item.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {item.tags.length > 3 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{item.tags.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+          {/* Error State */}
+          {isError && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <p className="text-lg font-medium mb-2">
+                    Failed to load media
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Please try again
+                  </p>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => window.location.reload()}
+                    >
+                      Retry
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Check browser console (F12) for detailed error logs
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-            {["featured", "images", "videos", "360"].map((tab) => (
-              <TabsContent key={tab} value={tab} className="space-y-6">
+          {/* Empty State */}
+          {!isLoading && !isError && filteredMedia.length === 0 && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                  <p className="mt-4 text-lg font-medium">No media found</p>
+                  <p className="text-sm text-muted-foreground">
+                    {searchQuery ||
+                    selectedCategory !== "All" ||
+                    selectedType !== "All"
+                      ? "Try adjusting your filters"
+                      : "Upload your first media to get started"}
+                  </p>
+                  {!searchQuery &&
+                    selectedCategory === "All" &&
+                    selectedType === "All" && (
+                      <Button
+                        className="mt-4"
+                        onClick={() => setShowUploadModal(true)}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Media
+                      </Button>
+                    )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Media Grid */}
+          {!isLoading && !isError && filteredMedia.length > 0 && (
+            <Tabs defaultValue="all" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="all">
+                  All Media ({filteredMedia.length})
+                </TabsTrigger>
+                <TabsTrigger value="featured">
+                  Featured ({filteredMedia.filter((m) => m.isFeatured).length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="all" className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {media
-                    .filter((item) => {
-                      if (tab === "featured") return item.isFeatured
-                      if (tab === "images") return item.type === "image"
-                      if (tab === "videos") return item.type === "video"
-                      if (tab === "360") return item.type === "360"
-                      return true
-                    })
-                    .map((item) => (
-                      <Card key={item.id} className="group relative overflow-hidden">
-                        <div className="relative aspect-video overflow-hidden">
-                          <img
-                            src={item.thumbnailUrl || "/placeholder.svg"}
-                            alt={item.description}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                          <div className="absolute right-2 top-2 flex gap-2">
-                            {item.isFeatured && (
-                              <Badge variant="secondary" className="bg-accent/90 text-accent-foreground">
-                                <Star className="mr-1 h-3 w-3 fill-current" />
-                                Featured
-                              </Badge>
-                            )}
-                            <Badge variant="secondary" className="bg-background/90">
-                              {getTypeIcon(item.type)}
-                              <span className="ml-1 capitalize">{item.type}</span>
-                            </Badge>
-                          </div>
-                          <div className="absolute bottom-2 left-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="secondary" className="flex-1">
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button size="sm" variant="secondary">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Edit Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Star className="mr-2 h-4 w-4" />
-                                    {item.isFeatured ? "Remove from Featured" : "Mark as Featured"}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </div>
-                        </div>
-                        <CardContent className="pt-4">
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <p className="font-medium line-clamp-1">{item.description}</p>
-                                <p className="text-sm text-muted-foreground">{item.uploadedAt}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                {item.category}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {item.tags.slice(0, 3).map((tag) => (
-                                <Badge key={tag} variant="secondary" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {item.tags.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{item.tags.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                  {filteredMedia.map(renderMediaCard)}
                 </div>
               </TabsContent>
-            ))}
-          </Tabs>
+
+              <TabsContent value="featured" className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredMedia
+                    .filter((m) => m.isFeatured)
+                    .map(renderMediaCard)}
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
       </SidebarInset>
 
-      <AddMediaModal open={showUploadModal} onOpenChange={setShowUploadModal} onSubmit={handleUploadMedia} />
+      <AddMediaModal open={showUploadModal} onOpenChange={setShowUploadModal} />
+
+      {selectedMedia && (
+        <EditMediaModal
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          media={selectedMedia}
+        />
+      )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              media item.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
-  )
+  );
 }
