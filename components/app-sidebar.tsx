@@ -35,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { logOut } from "@/lib/auth/authService";
+import { useGetUserProfileQuery } from "@/lib/redux/api/profileApi";
 
 const mainNavItems = [
   {
@@ -110,6 +111,11 @@ export function AppSidebar() {
   const router = useRouter();
   const user = useAppSelector((state) => state.auth.user);
 
+  // Fetch current user profile for most up-to-date data
+  const { data: userProfile } = useGetUserProfileQuery(user?.uid || "", {
+    skip: !user?.uid,
+  });
+
   const handleLogout = async () => {
     try {
       await logOut();
@@ -120,8 +126,9 @@ export function AppSidebar() {
   };
 
   const getUserInitials = () => {
-    if (user?.displayName) {
-      return user.displayName
+    const displayName = userProfile?.fullName || user?.displayName;
+    if (displayName) {
+      return displayName
         .split(" ")
         .map((n) => n[0])
         .join("")
@@ -214,13 +221,17 @@ export function AppSidebar() {
           >
             <Avatar className="h-8 w-8">
               <AvatarImage
-                src={user?.photoURL || "/placeholder.svg?height=32&width=32"}
+                src={
+                  userProfile?.photoURL ||
+                  user?.photoURL ||
+                  "/placeholder.svg?height=32&width=32"
+                }
               />
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
             <div className="flex-1 text-sm">
               <p className="font-medium text-sidebar-foreground">
-                {user?.displayName || "Admin User"}
+                {userProfile?.fullName || user?.displayName || "Admin User"}
               </p>
               <p className="text-xs text-muted-foreground">
                 {user?.email || "admin@blinking.com"}
