@@ -23,7 +23,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Blinking Events Admin Portal",
   description: "Manage your event services, staff, orders, and more",
-  generator: "v0.app",
+  generator: "Blinking Events",
 };
 
 export default function RootLayout({
