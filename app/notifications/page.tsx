@@ -1,54 +1,46 @@
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { PageHeader } from "@/components/page-header"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Bell, Send, Users, TrendingUp, CheckCircle } from "lucide-react"
+/**
+ * Notifications Page
+ * Admin interface for managing push notifications
+ *
+ * @created January 10, 2026
+ * @version 2.0.0
+ */
+
+"use client";
+
+import { useState } from "react";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { PageHeader } from "@/components/page-header";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Settings, RefreshCw } from "lucide-react";
+import {
+  SendNotificationForm,
+  NotificationHistory,
+  NotificationStats,
+  NotificationPreview,
+} from "@/components/notifications";
+import { NotificationAnalyticsDetail } from "@/components/notifications/notification-stats";
 
 export default function NotificationsPage() {
-  const notifications = [
-    {
-      id: "1",
-      title: "New Order Received",
-      body: "Sarah Johnson has requested a quote for a wedding event",
-      type: "order",
-      sentAt: "2025-01-15 14:30",
-      recipients: 1,
-      status: "Sent",
-    },
-    {
-      id: "2",
-      title: "Valentine's Day Special",
-      body: "Get 15% off on all wedding packages this February!",
-      type: "promo",
-      sentAt: "2025-01-14 10:00",
-      recipients: 156,
-      status: "Sent",
-    },
-    {
-      id: "3",
-      title: "Event Reminder",
-      body: "Your event is scheduled for tomorrow at Grand Hotel",
-      type: "reminder",
-      sentAt: "2025-01-13 16:00",
-      recipients: 1,
-      status: "Sent",
-    },
-  ]
-
-  const stats = [
-    { label: "Total Sent", value: "1,234", icon: Send },
-    { label: "Active Users", value: "156", icon: Users },
-    { label: "Open Rate", value: "68%", icon: TrendingUp },
-    { label: "Delivered", value: "98%", icon: CheckCircle },
-  ]
+  const [activeTab, setActiveTab] = useState("send");
+  const [previewTitle, setPreviewTitle] = useState("");
+  const [previewBody, setPreviewBody] = useState("");
+  const [previewImage, setPreviewImage] = useState("");
 
   return (
     <SidebarProvider>
@@ -59,140 +51,151 @@ export default function NotificationsPage() {
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex flex-1 items-center justify-between">
             <h2 className="text-lg font-semibold">Notifications</h2>
+            <Button variant="outline" size="sm" asChild>
+              <a href="/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </a>
+            </Button>
           </div>
         </header>
+
         <div className="flex flex-1 flex-col gap-6 p-6">
-          <PageHeader title="Push Notifications" description="Send notifications and manage engagement" />
+          <PageHeader
+            title="Push Notifications"
+            description="Send notifications and manage user engagement"
+          />
 
-          {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.label}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-                  <stat.icon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {/* Stats Overview */}
+          <NotificationStats days={30} />
 
-          <Tabs defaultValue="send" className="space-y-6">
+          {/* Main Content */}
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
             <TabsList>
               <TabsTrigger value="send">Send Notification</TabsTrigger>
               <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
+            {/* Send Notification Tab */}
             <TabsContent value="send" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create Push Notification</CardTitle>
-                  <CardDescription>Send a notification to your app users</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Notification Title</Label>
-                    <Input placeholder="e.g., New Service Available" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Message Body</Label>
-                    <Textarea placeholder="Enter your notification message..." rows={4} />
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Notification Type</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="order">Order Update</SelectItem>
-                          <SelectItem value="promo">Promotion</SelectItem>
-                          <SelectItem value="info">Information</SelectItem>
-                          <SelectItem value="reminder">Reminder</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Target Audience</Label>
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select audience" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Users</SelectItem>
-                          <SelectItem value="active">Active Clients</SelectItem>
-                          <SelectItem value="vip">VIP Clients</SelectItem>
-                          <SelectItem value="new">New Users</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Link (Optional)</Label>
-                    <Input placeholder="e.g., /services/wedding" />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button>
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Now
-                    </Button>
-                    <Button variant="outline">Schedule for Later</Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Form */}
+                <SendNotificationForm
+                  onSuccess={() => {
+                    setPreviewTitle("");
+                    setPreviewBody("");
+                    setPreviewImage("");
+                  }}
+                />
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Preview</CardTitle>
-                  <CardDescription>How your notification will appear</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
-                        <Bell className="h-5 w-5 text-primary-foreground" />
+                {/* Preview */}
+                <div className="space-y-6">
+                  <NotificationPreview
+                    title={previewTitle}
+                    body={previewBody}
+                    imageUrl={previewImage}
+                  />
+
+                  {/* Tips Card */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        Tips for Effective Notifications
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm text-muted-foreground">
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          1
+                        </Badge>
+                        <p>
+                          Keep titles under 50 characters for best visibility
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold">Notification Title</p>
-                        <p className="text-sm text-muted-foreground">Your notification message will appear here...</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Just now</p>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          2
+                        </Badge>
+                        <p>Use action-oriented language to drive engagement</p>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          3
+                        </Badge>
+                        <p>Include images for 2x higher click-through rates</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          4
+                        </Badge>
+                        <p>
+                          Time your notifications based on user activity
+                          patterns
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="shrink-0">
+                          5
+                        </Badge>
+                        <p>
+                          Personalize messages when possible for better
+                          engagement
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-6">
+            {/* History Tab */}
+            <TabsContent value="history">
+              <NotificationHistory pageSize={15} />
+            </TabsContent>
+
+            {/* Analytics Tab */}
+            <TabsContent value="analytics" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Notification Analytics
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Detailed insights into notification performance
+                  </p>
+                </div>
+                <Button variant="outline" size="sm">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Data
+                </Button>
+              </div>
+
+              {/* Extended Stats */}
+              <NotificationStats days={30} />
+
+              {/* Detailed Analytics */}
+              <NotificationAnalyticsDetail days={30} />
+
+              {/* Trend Chart Placeholder */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Notification History</CardTitle>
-                  <CardDescription>Previously sent notifications</CardDescription>
+                  <CardTitle className="text-base">
+                    Notification Trend
+                  </CardTitle>
+                  <CardDescription>
+                    Daily notification activity over the last 30 days
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className="flex items-start justify-between rounded-lg border border-border p-4"
-                      >
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-3">
-                            <p className="font-semibold">{notification.title}</p>
-                            <Badge variant="outline">{notification.type}</Badge>
-                            <Badge variant="secondary">{notification.status}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{notification.body}</p>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>Sent: {notification.sentAt}</span>
-                            <span>Recipients: {notification.recipients}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="flex h-64 items-center justify-center rounded-lg border border-dashed">
+                    <p className="text-sm text-muted-foreground">
+                      Chart visualization coming soon
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -201,5 +204,5 @@ export default function NotificationsPage() {
         </div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
