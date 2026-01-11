@@ -276,16 +276,19 @@ export function EditOfferModal({
             <div className="space-y-2">
               <Label htmlFor="edit-offer-category">Category</Label>
               <Select
-                value={formData.category}
+                value={formData.category || "none"}
                 onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, category: value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    category: value === "none" ? "" : value,
+                  }))
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Category</SelectItem>
+                  <SelectItem value="none">No Category</SelectItem>
                   <SelectItem value="wedding">Wedding</SelectItem>
                   <SelectItem value="corporate">Corporate</SelectItem>
                   <SelectItem value="cultural">Cultural</SelectItem>

@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import { ReduxProvider } from "@/lib/redux/provider";
 import { AuthProvider } from "@/components/auth-provider";
+import { NotificationPrompt } from "@/components/notification-prompt";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default function RootLayout({
         <ReduxProvider>
           <AuthProvider>
             <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+            <NotificationPrompt />
             <Toaster />
             <Analytics />
           </AuthProvider>

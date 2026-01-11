@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { observeAuthState, getUserData } from "@/lib/auth/authService";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { setUser, setLoading, logout } from "@/lib/redux/slices/authSlice";
+import { requestNotificationPermission, removeToken } from "@/lib/firebase/fcm";
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password"];
@@ -18,6 +19,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useAppSelector((state) => state.auth);
+
+  // Track if we've already registered FCM for this session
+  const fcmRegisteredRef = useRef<string | null>(null);
+  const notificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const unsubscribe = observeAuthState(async (firebaseUser) => {
@@ -37,6 +42,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
             })
           );
 
+          console.log(
+            "[AuthProvider] User authenticated successfully:",
+            firebaseUser.uid
+          );
+
+          // Auto-request notification permission after login
+          // Only if not already registered for this user
+          if (fcmRegisteredRef.current !== firebaseUser.uid) {
+            // Wait 2 seconds after login to ensure user interaction context
+            notificationTimeoutRef.current = setTimeout(async () => {
+              try {
+                console.log(
+                  "[AuthProvider] Auto-requesting notification permission..."
+                );
+                await requestNotificationPermission(firebaseUser.uid);
+                fcmRegisteredRef.current = firebaseUser.uid;
+                console.log(
+                  "[AuthProvider] ✅ Notification registration successful"
+                );
+              } catch (error) {
+                console.error(
+                  "[AuthProvider] Notification registration failed:",
+                  error
+                );
+                // Don't block app if notification fails
+              }
+            }, 2000);
+          }
+
           // Redirect to dashboard if on public route
           if (PUBLIC_ROUTES.includes(pathname)) {
             router.push("/");
@@ -44,12 +78,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           // Not an admin or inactive account
           dispatch(logout());
+          fcmRegisteredRef.current = null;
           if (!PUBLIC_ROUTES.includes(pathname)) {
             router.push("/login");
           }
         }
       } else {
-        // User is signed out
+        // User is signed out - remove FCM token
+        if (fcmRegisteredRef.current) {
+          console.log("[AuthProvider] Removing FCM token for logged out user");
+          removeToken(fcmRegisteredRef.current).catch((error) => {
+            console.error("[AuthProvider] Error removing FCM token:", error);
+          });
+          fcmRegisteredRef.current = null;
+        }
+
+        // Clear notification timeout if user logs out before it triggers
+        if (notificationTimeoutRef.current) {
+          clearTimeout(notificationTimeoutRef.current);
+          notificationTimeoutRef.current = null;
+        }
+
         dispatch(setUser(null));
         if (!PUBLIC_ROUTES.includes(pathname)) {
           router.push("/login");
@@ -59,7 +108,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       dispatch(setLoading(false));
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Cleanup timeout on unmount
+      if (notificationTimeoutRef.current) {
+        clearTimeout(notificationTimeoutRef.current);
+      }
+    };
   }, [dispatch, router, pathname]);
 
   // Show loading screen while checking auth state

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Plus, X, Upload, AlertCircle } from "lucide-react";
+import { Plus, X, Upload, AlertCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -86,6 +86,7 @@ export function AddStaffModal({
   // Photo Upload states
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -370,43 +371,76 @@ export function AddStaffModal({
       return;
     }
 
-    // If file is selected but not uploaded, upload it first
-    if (selectedFile && !formData.photoUrl) {
-      toast.warning("Uploading photo first...");
-      await handleUploadPhoto();
-      return;
+    try {
+      // If file is selected but not uploaded, upload it first
+      let photoUrl = formData.photoUrl;
+      if (selectedFile && !formData.photoUrl) {
+        setIsUploading(true);
+        setUploadError("");
+        setUploadProgress(0);
+
+        try {
+          // Upload to Cloudinary with progress tracking
+          const result = await uploadFileClient(
+            selectedFile,
+            CloudinaryPaths.staff("temp"), // Use temp until staff is created
+            (progress) => {
+              setUploadProgress(Math.round(progress));
+            }
+          );
+
+          photoUrl = result.url;
+        } catch (error: any) {
+          console.error("Upload error:", error);
+          setUploadError(error.message || "Failed to upload photo");
+          toast.error(error.message || "Failed to upload photo");
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Set saving state for Firebase operation
+      setIsSaving(true);
+      setIsUploading(true); // Keep upload state for button loading
+
+      // Submit form data
+      await onSubmit({
+        ...formData,
+        photoUrl,
+        rating: 0,
+        reviews: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // Reset form only after successful submission
+      setFormData({
+        fullName: "",
+        photoUrl: "",
+        bio: "",
+        skills: [],
+        qualifications: [],
+        languages: [],
+        categories: [],
+        portfolio: [],
+        availability: [],
+        contact: { phone: "", email: "" },
+        isActive: true,
+      });
+      setSelectedFile(null);
+      setPreviewUrl("");
+      setUploadProgress(0);
+      setUploadError("");
+      setPortfolioForm({ eventName: "", description: "", media: [] });
+      setPortfolioMediaFiles([]);
+      setAvailabilityForm({ from: "", to: "" });
+    } catch (error: any) {
+      // Error is already handled in handleAddStaff, but we catch here to stop loading
+      console.error("Error in handleSubmit:", error);
+    } finally {
+      setIsUploading(false);
+      setIsSaving(false);
     }
-
-    // Submit form data
-    onSubmit({
-      ...formData,
-      rating: 0,
-      reviews: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    // Reset form
-    setFormData({
-      fullName: "",
-      photoUrl: "",
-      bio: "",
-      skills: [],
-      qualifications: [],
-      languages: [],
-      categories: [],
-      portfolio: [],
-      availability: [],
-      contact: { phone: "", email: "" },
-      isActive: true,
-    });
-    setSelectedFile(null);
-    setPreviewUrl("");
-    setUploadProgress(0);
-    setUploadError("");
-    setPortfolioForm({ eventName: "", description: "", media: [] });
-    setPortfolioMediaFiles([]);
-    setAvailabilityForm({ from: "", to: "" });
   };
 
   const categoryOptions = [
@@ -1021,10 +1055,24 @@ export function AddStaffModal({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isUploading || isSaving}
             >
               Cancel
             </Button>
-            <Button type="submit">Add Staff Member</Button>
+            <Button type="submit" disabled={isUploading || isSaving}>
+              {isUploading || isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isSaving
+                    ? "Saving to Firebase..."
+                    : uploadProgress > 0 && uploadProgress < 100
+                    ? `Uploading... ${uploadProgress}%`
+                    : "Processing..."}
+                </>
+              ) : (
+                "Add Staff Member"
+              )}
+            </Button>
           </div>
         </form>
       </DialogContent>

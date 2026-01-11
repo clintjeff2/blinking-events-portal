@@ -43,6 +43,7 @@ export const signUp = async (data: SignUpData): Promise<UserData> => {
     );
 
     // Create Firestore user document with admin role
+    // Include fcmTokens array for push notification support
     const userData: UserData = {
       uid: userCredential.user.uid,
       email: data.email,
@@ -60,7 +61,22 @@ export const signUp = async (data: SignUpData): Promise<UserData> => {
       ],
     };
 
-    await setDoc(doc(db, "users", userCredential.user.uid), userData);
+    // User document with FCM tokens support
+    await setDoc(doc(db, "users", userCredential.user.uid), {
+      ...userData,
+      fcmTokens: [], // Initialize empty array for push notification tokens
+      notificationPreferences: {
+        pushEnabled: true,
+        emailEnabled: true,
+        smsEnabled: false,
+        orderNotifications: true,
+        messageNotifications: true,
+        promoNotifications: true,
+        reminderNotifications: true,
+        infoNotifications: true,
+        quietHoursEnabled: false,
+      },
+    });
 
     return userData;
   } catch (error: any) {
@@ -115,6 +131,7 @@ export const signIn = async (
 
 /**
  * Sign out current user
+ * FCM token removal is handled by AuthProvider when auth state changes
  */
 export const logOut = async (): Promise<void> => {
   try {

@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -122,4 +122,27 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Date input calendar icon fix for dark backgrounds */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* For light mode, don't invert */
+:root:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator,
+:root:not(.dark) input[type="time"]::-webkit-calendar-picker-indicator,
+:root:not(.dark)
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: none;
 }
