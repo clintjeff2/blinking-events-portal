@@ -20,7 +20,20 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `createdAt` (timestamp)
 - `favorites` (array of {type: string, refId: string}): List of favorited services or staff.
   - Example: [{ type: "service", refId: "serviceId1" }, { type: "staff", refId: "staffId3" }]
-- `notificationTokens` (array of string, optional): For push notifications
+- `notificationTokens` (array of string, optional): For push notifications (DEPRECATED - use fcmTokens)
+- `fcmTokens` (array of FCMToken, optional): Firebase Cloud Messaging tokens for push notifications
+  ```typescript
+  interface FCMToken {
+    token: string; // The FCM/Expo push token
+    deviceId: string; // Unique device identifier
+    platform: "web" | "ios" | "android";
+    tokenType: "fcm" | "expo" | "apns"; // Token type for proper delivery routing
+    createdAt: Timestamp; // When token was first registered
+    lastUsedAt: Timestamp; // Last successful notification delivery
+    isActive: boolean; // Whether token is still valid
+    appVersion?: string; // App version for debugging (mobile only)
+  }
+  ```
 - `isActive` (boolean): For soft deletes or bans
 
 #### For Staff/Admins (if role is `'staff'`):
@@ -166,18 +179,127 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ## 7. Notifications Collection (`notifications`)
 
-**Purpose:** Push notifications and in-app alerts (per user).
+**Purpose:** Push notifications and in-app alerts. Stores both individual notifications and broadcast campaigns.
+
+**Document ID:** Auto-generated
 
 ### Fields:
 
-- `notificationId` (string, auto-id)
-- `userId` (string)
-- `title` (string)
-- `body` (string)
-- `type` (string): `'order' | 'promo' | 'info' | 'reminder'`
-- `reference` (object, optional): e.g., `{ orderId: string }`
-- `isRead` (boolean)
+- `notificationId` (string): Same as document ID
+- `title` (string): Notification title (max 100 characters recommended)
+- `body` (string): Notification message body (max 500 characters recommended)
+- `imageUrl` (string, optional): Image to display with notification
+- `type` (string): `'order' | 'message' | 'promo' | 'reminder' | 'info' | 'system' | 'payment' | 'staff'`
+- `priority` (string): `'low' | 'normal' | 'high' | 'urgent'`
+
+#### Targeting Fields:
+
+- `recipientId` (string, optional): Single recipient user ID
+- `recipientIds` (array of string, optional): Multiple specific recipient user IDs (for targeted campaigns)
+- `targetAudience` (string, optional): For broadcasts: `'all' | 'clients' | 'active_clients' | 'vip_clients' | 'new_users' | 'staff' | 'admins' | 'custom'`
+
+#### Deep Linking:
+
+- `reference` (object, optional): For navigation on tap
+  ```typescript
+  {
+    type: 'order' | 'conversation' | 'service' | 'event' | 'staff' | 'offer' | 'url';
+    id?: string;        // Entity ID for deep linking
+    url?: string;       // Custom URL for 'url' type
+    metadata?: Record<string, string>;  // Additional context
+  }
+  ```
+- `actions` (array, optional): Action buttons
+  ```typescript
+  {
+    id: string;
+    title: string;
+    action: string;  // Deep link or action identifier
+    icon?: string;
+  }[]
+  ```
+
+#### Delivery Information:
+
+- `channels` (array of string): `['push', 'in_app', 'email', 'sms']`
+- `status` (string): `'pending' | 'sent' | 'delivered' | 'failed' | 'cancelled'`
+- `sentAt` (timestamp, optional): When notification was sent
+- `deliveredAt` (timestamp, optional): When notification was delivered
+- `failureReason` (string, optional): Error message if failed
+- `scheduledFor` (timestamp, optional): For scheduled notifications
+
+#### Read/Engagement Tracking:
+
+- `isRead` (boolean): Whether recipient has read the notification
+- `readAt` (timestamp, optional): When notification was read
+- `clickedAt` (timestamp, optional): When notification was tapped/clicked
+
+#### Metadata:
+
+- `senderId` (string): Admin user ID who created the notification
+- `senderName` (string): Admin display name
 - `createdAt` (timestamp)
+- `updatedAt` (timestamp)
+- `parentNotificationId` (string, optional): For broadcast child notifications, reference to parent
+
+#### Broadcast Statistics (for campaign notifications):
+
+- `stats` (object, optional):
+  ```typescript
+  {
+    totalRecipients: number;
+    delivered: number;
+    failed: number;
+    opened: number;
+    clicked: number;
+  }
+  ```
+
+### Indexes Required:
+
+```
+notifications:
+  - recipientId ASC, createdAt DESC
+  - recipientId ASC, isRead ASC, createdAt DESC
+  - senderId ASC, createdAt DESC
+  - type ASC, status ASC, createdAt DESC
+  - targetAudience ASC, createdAt DESC
+  - status ASC, scheduledFor ASC (for scheduled notification processing)
+```
+
+---
+
+## 7.1 Notification Preferences Collection (`notificationPreferences`)
+
+**Purpose:** User-specific notification settings and preferences.
+
+**Document ID:** User ID (same as users collection document ID)
+
+### Fields:
+
+- `userId` (string): Reference to users collection
+
+#### Channel Preferences:
+
+- `pushEnabled` (boolean): Enable/disable push notifications
+- `emailEnabled` (boolean): Enable/disable email notifications
+- `smsEnabled` (boolean): Enable/disable SMS notifications
+
+#### Type Preferences:
+
+- `orderNotifications` (boolean): Order-related notifications
+- `messageNotifications` (boolean): New message notifications
+- `promoNotifications` (boolean): Promotional notifications
+- `reminderNotifications` (boolean): Reminder notifications
+- `infoNotifications` (boolean): General information notifications
+
+#### Quiet Hours:
+
+- `quietHoursEnabled` (boolean): Enable quiet hours
+- `quietHoursStart` (string, optional): Start time in "HH:mm" format (e.g., "22:00")
+- `quietHoursEnd` (string, optional): End time in "HH:mm" format (e.g., "07:00")
+
+- `updatedAt` (timestamp)
 
 ---
 
@@ -234,7 +356,118 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 10. App Config Collection (`appConfig`)
+## 10. Conversations Collection (`conversations`)
+
+**Purpose:** Stores messaging conversations between admins and clients. Enables real-time two-way communication.
+
+**Document ID:** Auto-generated
+
+### Fields:
+
+- `conversationId` (string): Same as document ID
+- `participants` (array of MessageParticipant):
+  ```typescript
+  interface MessageParticipant {
+    userId: string;
+    role: "client" | "admin";
+    fullName: string;
+    avatarUrl?: string;
+  }
+  ```
+- `clientId` (string): User ID of the client participant
+- `adminId` (string): User ID of the admin participant
+- `orderId` (string, optional): Reference to an order (for order-specific conversations)
+- `orderNumber` (string, optional): Display order number (e.g., "ORD-001")
+- `lastMessage` (object, optional):
+  ```typescript
+  {
+    text: string;
+    senderId: string;
+    senderName: string;
+    senderRole?: 'client' | 'admin';
+    timestamp: Timestamp;
+    type: 'text' | 'image' | 'document' | 'system';
+  }
+  ```
+- `unreadCount` (object): Map of userId to unread count
+  ```typescript
+  { [userId: string]: number }
+  ```
+- `status` (string): `'active' | 'archived' | 'closed'`
+- `createdAt` (timestamp)
+- `updatedAt` (timestamp)
+- `createdBy` (string): User ID who created the conversation
+- `metadata` (object, optional):
+  ```typescript
+  {
+    subject?: string;
+    priority?: 'normal' | 'high' | 'urgent';
+    tags?: string[];
+  }
+  ```
+
+### Subcollection: `conversations/{conversationId}/messages`
+
+**Purpose:** Stores individual messages within a conversation.
+
+- `messageId` (string): Same as document ID
+- `conversationId` (string): Parent conversation ID
+- `senderId` (string): User ID of the sender
+- `senderName` (string): Display name of the sender
+- `senderRole` (string): `'client' | 'admin'`
+- `senderAvatar` (string, optional): Avatar URL
+- `text` (string): Message content
+- `type` (string): `'text' | 'image' | 'document' | 'system'`
+- `attachments` (array, optional):
+  ```typescript
+  {
+    type: 'image' | 'document' | 'video';
+    url: string;
+    name: string;
+    size?: number;
+    mimeType?: string;
+  }[]
+  ```
+- `status` (string): `'sent' | 'delivered' | 'read'`
+- `createdAt` (timestamp)
+- `deliveredAt` (timestamp, optional)
+- `readAt` (timestamp, optional)
+- `readBy` (array, optional):
+  ```typescript
+  {
+    userId: string;
+    readAt: Timestamp;
+  }
+  [];
+  ```
+- `isDeleted` (boolean): Soft delete flag
+- `deletedAt` (timestamp, optional)
+- `replyTo` (object, optional): For reply-to-message feature
+  ```typescript
+  {
+    messageId: string;
+    text: string;
+    senderName: string;
+  }
+  ```
+- `isSystemMessage` (boolean): True for automated system messages
+
+### Indexes Required:
+
+```
+conversations:
+  - adminId ASC, status ASC, updatedAt DESC
+  - clientId ASC, status ASC, updatedAt DESC
+  - orderId ASC, status ASC
+
+messages (subcollection):
+  - isDeleted ASC, createdAt ASC
+  - senderId ASC, status ASC
+```
+
+---
+
+## 11. App Config Collection (`appConfig`)
 
 **Purpose:** Global app settings, marketing banners, offers.
 
@@ -248,7 +481,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 11. Analytics Collection (`analytics`)
+## 12. Analytics Collection (`analytics`)
 
 **Purpose:** Track app usage, engagement, revenue, etc.
 
@@ -264,7 +497,7 @@ This document defines all Firebase Firestore collections, their fields, data str
 
 ---
 
-## 12. Testimonials Collection (`testimonials`)
+## 13. Testimonials Collection (`testimonials`)
 
 **Purpose:** Client testimonials for marketing.
 
@@ -286,10 +519,83 @@ This document defines all Firebase Firestore collections, their fields, data str
 - `users` refer to their `favorites` (services, staff).
 - `staffProfiles` may reference `users` (for staff login).
 - `orders` reference `users` as `clientId`, `services` as `servicesRequested.serviceId`, and `staffProfiles` as `staffRequested`.
+- `conversations` reference `users` as both `clientId` and `adminId`, and optionally link to `orders` via `orderId`.
 - `media` can be linked to `events`, `services`, or `staffProfiles`.
 - `events` aggregate `servicesUsed`, `staffInvolved`, `media`, and `testimonials`.
 - `notifications` are targeted per `userId`.
 - `testimonials` may be linked to both `events` and `clients`.
+
+---
+
+## Push Notification Architecture
+
+**Purpose:** Send push notifications from admin portal to mobile clients using Firebase Cloud Messaging (FCM) and Expo Push Service.
+
+### How Notifications Work
+
+1. **Admin Portal sends notification** → Creates document in `notifications` collection + calls `/api/notifications/send` API route
+2. **API route processes request** → Fetches user tokens from `users` collection
+3. **Routes to appropriate service**:
+   - FCM tokens → Firebase Admin SDK (web/Android)
+   - Expo tokens → Expo Push Service (Expo apps)
+4. **Mobile receives notification** → Handles via `expo-notifications`
+5. **Updates Firestore** → Sets notification `status` to `delivered` or `failed`
+
+### API Route
+
+**Location:** `/app/api/notifications/send/route.ts`
+
+**Method:** `POST`
+
+**Request Body:**
+
+```typescript
+{
+  userIds: string[];      // Array of user IDs to send to
+  title: string;          // Notification title
+  body: string;           // Notification body
+  data?: Record<string, string>;  // Optional custom data
+  imageUrl?: string;      // Optional image URL
+}
+```
+
+**Response:**
+
+```typescript
+{
+  success: boolean;
+  results: {
+    userId: string;
+    success: boolean;
+    tokensSent: number;
+    error?: string;
+  }[];
+  totalSent: number;
+  totalFailed: number;
+}
+```
+
+### Firebase Admin SDK Setup
+
+**Location:** `/lib/firebase/admin.ts`
+
+**Required Environment Variables:**
+
+```env
+FIREBASE_SERVICE_ACCOUNT={"type":"service_account",...}  # JSON string
+# OR
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+```
+
+### Token Type Routing
+
+Push tokens are routed based on `tokenType` field in `users.fcmTokens`:
+
+| Token Type | Delivery Service         | Typical Source          |
+| ---------- | ------------------------ | ----------------------- |
+| `fcm`      | Firebase Cloud Messaging | Web app, Android native |
+| `expo`     | Expo Push Service        | Expo managed builds     |
+| `apns`     | FCM (handles APNs)       | iOS native              |
 
 ---
 
