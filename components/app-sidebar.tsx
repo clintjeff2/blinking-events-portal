@@ -30,12 +30,14 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAppSelector } from "@/lib/redux/hooks";
 import { logOut } from "@/lib/auth/authService";
 import { useGetUserProfileQuery } from "@/lib/redux/api/profileApi";
+import { useGetTotalUnreadCountQuery } from "@/lib/redux/api/messagingApi";
 
 const mainNavItems = [
   {
@@ -115,6 +117,12 @@ export function AppSidebar() {
   const { data: userProfile } = useGetUserProfileQuery(user?.uid || "", {
     skip: !user?.uid,
   });
+
+  // Fetch unread message count
+  const { data: unreadData } = useGetTotalUnreadCountQuery(user?.uid || "", {
+    skip: !user?.uid,
+  });
+  const totalUnread = unreadData?.total || 0;
 
   const handleLogout = async () => {
     try {
@@ -207,6 +215,11 @@ export function AppSidebar() {
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
+                  {item.title === "Messages" && totalUnread > 0 && (
+                    <SidebarMenuBadge className="bg-primary text-primary-foreground">
+                      {totalUnread > 99 ? "99+" : totalUnread}
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
