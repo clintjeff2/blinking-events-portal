@@ -1,0 +1,144 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+    
+    // Services collection
+    match /services/{serviceId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Staff profiles collection
+    match /staffProfiles/{staffId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && 
+                     (resource.data.clientId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || 
+                       (isSignedIn() && resource.data.clientId == request.auth.uid);
+      allow delete: if isAdmin();
+      
+      // Order messages subcollection
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && 
+                       (get(/databases/$(database)/documents/orders/$(orderId)).data.clientId == request.auth.uid || 
+                        isAdmin());
+        allow create: if isSignedIn();
+      }
+    }
+    
+    // Media collection
+    match /media/{mediaId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && 
+                     (resource.data.recipientId == request.auth.uid || 
+                      isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Notification Preferences collection
+    match /notificationPreferences/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Favorites collection
+    match /favorites/{favoriteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Conversations collection
+    match /conversations/{conversationId} {
+      allow read: if isSignedIn() && 
+                     (resource.data.clientId == request.auth.uid || 
+                      resource.data.adminId == request.auth.uid || 
+                      isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && 
+                       (resource.data.clientId == request.auth.uid || 
+                        resource.data.adminId == request.auth.uid || 
+                        isAdmin());
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && 
+                       (get(/databases/$(database)/documents/conversations/$(conversationId)).data.clientId == request.auth.uid || 
+                        get(/databases/$(database)/documents/conversations/$(conversationId)).data.adminId == request.auth.uid || 
+                        isAdmin());
+        allow create: if isSignedIn();
+        allow update: if isSignedIn() && resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // Marketing collection
+    match /marketing/{document=**} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // App config
+    match /appConfig/{configId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Testimonials
+    match /testimonials/{testimonialId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // FAQs
+    match /faqs/{faqId} {
+      allow read: if true; // Public read
+      allow write: if isAdmin();
+    }
+    
+    // Analytics - admin only
+    match /analytics/{analyticId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
