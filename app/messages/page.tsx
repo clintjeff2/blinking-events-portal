@@ -1,79 +1,427 @@
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { PageHeader } from "@/components/page-header"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Search, Send } from "lucide-react"
+/**
+ * Messages Page
+ * Admin messaging center with real-time conversations
+ */
+
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { PageHeader } from "@/components/page-header";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  ConversationsList,
+  ChatWindow,
+  NewConversationModal,
+} from "@/components/messaging";
+import { useConversations } from "@/hooks/use-conversations";
+import { useMessages, markConversationAsRead } from "@/hooks/use-messages";
+import {
+  useGetOrCreateConversationMutation,
+  useSendMessageMutation,
+  useMarkAsReadMutation,
+  useMarkMessagesAsDeliveredMutation,
+  useMarkMessagesAsReadMutation,
+  useLazyFindClientByEmailQuery,
+} from "@/lib/redux/api/messagingApi";
+import type { Conversation, ConversationStatus } from "@/types/messaging";
+import { Timestamp } from "firebase/firestore";
 
 export default function MessagesPage() {
-  const conversations = [
-    {
-      id: "1",
-      clientName: "Sarah Johnson",
-      lastMessage: "Thank you! Looking forward to working with you.",
-      timestamp: "2 hours ago",
-      unread: 0,
-      orderId: "ORD-001",
-    },
-    {
-      id: "2",
-      clientName: "Michael Chen",
-      lastMessage: "Can we schedule a call to discuss the details?",
-      timestamp: "5 hours ago",
-      unread: 2,
-      orderId: "ORD-002",
-    },
-    {
-      id: "3",
-      clientName: "Emma Williams",
-      lastMessage: "Perfect! I'll send the deposit today.",
-      timestamp: "1 day ago",
-      unread: 0,
-      orderId: "ORD-003",
-    },
-  ]
+  const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const hasHandledParams = useRef(false);
 
-  const currentMessages = [
-    {
-      id: "1",
-      senderId: "client-1",
-      senderName: "Sarah Johnson",
-      text: "Hi, I received your quote. It looks great!",
-      timestamp: "10:30 AM",
-    },
-    {
-      id: "2",
-      senderId: "admin-1",
-      senderName: "Admin",
-      text: "Wonderful! I'm glad you're happy with it. Do you have any questions?",
-      timestamp: "10:35 AM",
-    },
-    {
-      id: "3",
-      senderId: "client-1",
-      senderName: "Sarah Johnson",
-      text: "Just one - can we add an extra photographer?",
-      timestamp: "10:40 AM",
-    },
-    {
-      id: "4",
-      senderId: "admin-1",
-      senderName: "Admin",
-      text: "That would be an additional 80,000 XAF. I'll update the quote for you.",
-      timestamp: "10:42 AM",
-    },
-    {
-      id: "5",
-      senderId: "client-1",
-      senderName: "Sarah Johnson",
-      text: "Thank you! Looking forward to working with you.",
-      timestamp: "10:45 AM",
-    },
-  ]
+  // Get authenticated admin user
+  const { user: adminUser, isAuthenticated } = useAuth();
+  const adminId = adminUser?.uid || "";
+  const adminName = adminUser?.displayName || "Admin";
+
+  // State
+  const [activeTab, setActiveTab] = useState<ConversationStatus | "all">(
+    "all" // Default to "all" so new conversations appear immediately
+  );
+  const [selectedConversation, setSelectedConversation] =
+    useState<Conversation | null>(null);
+  const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+
+  // Real-time hooks
+  const {
+    conversations,
+    loading: conversationsLoading,
+    error: conversationsError,
+    totalUnread,
+  } = useConversations({
+    adminId: adminId,
+    status: activeTab === "all" ? undefined : (activeTab as ConversationStatus),
+    enabled: isAuthenticated && !!adminId,
+  });
+
+  const {
+    messages,
+    loading: messagesLoading,
+    error: messagesError,
+  } = useMessages({
+    conversationId: selectedConversation?.conversationId || null,
+    enabled: !!selectedConversation,
+  });
+
+  // Log messages state for debugging
+  useEffect(() => {
+    console.log("[MessagesPage] Messages state updated:", {
+      messagesCount: messages.length,
+      messagesLoading,
+      messagesError,
+      selectedConversationId: selectedConversation?.conversationId,
+    });
+  }, [messages, messagesLoading, messagesError, selectedConversation]);
+
+  // Mutations and lazy queries
+  const [getOrCreateConversation, { isLoading: isCreatingConversation }] =
+    useGetOrCreateConversationMutation();
+  const [sendMessage] = useSendMessageMutation();
+  const [markAsRead] = useMarkAsReadMutation();
+  const [markMessagesAsDelivered] = useMarkMessagesAsDeliveredMutation();
+  const [markMessagesAsRead] = useMarkMessagesAsReadMutation();
+  const [findClientByEmail] = useLazyFindClientByEmailQuery();
+
+  // Handle URL params for opening conversation from other pages (e.g., orders)
+  useEffect(() => {
+    // Prevent running multiple times
+    if (hasHandledParams.current) return;
+
+    const clientName = searchParams.get("clientName");
+    const clientEmail = searchParams.get("clientEmail");
+    const orderId = searchParams.get("orderId");
+    const orderNumber = searchParams.get("orderNumber");
+
+    if (clientName && clientEmail) {
+      hasHandledParams.current = true;
+      handleStartConversationFromParams({
+        clientName,
+        clientEmail,
+        orderId: orderId || undefined,
+        orderNumber: orderNumber || undefined,
+      });
+    }
+  }, [searchParams]);
+
+  // Mark conversation as read when selected
+  useEffect(() => {
+    if (selectedConversation && adminId) {
+      const unreadCount = selectedConversation.unreadCount[adminId] || 0;
+      if (unreadCount > 0) {
+        markConversationAsRead(selectedConversation.conversationId, adminId);
+        markAsRead({
+          conversationId: selectedConversation.conversationId,
+          userId: adminId,
+        });
+      }
+    }
+  }, [selectedConversation, markAsRead, adminId]);
+
+  // Mark messages as delivered/read when viewing them
+  useEffect(() => {
+    if (!selectedConversation || !messages.length) return;
+
+    const conversationId = selectedConversation.conversationId;
+    const clientId = selectedConversation.clientId;
+
+    // Find messages from the client that need status updates
+    // (messages sent by the client, not by admin)
+    const clientMessages = messages.filter(
+      (msg) => msg.senderId === clientId && !msg.isSystemMessage
+    );
+
+    // Check if there are any messages that need status updates
+    const hasUndeliveredMessages = clientMessages.some(
+      (msg) => msg.status === "sent"
+    );
+    const hasUnreadMessages = clientMessages.some(
+      (msg) => msg.status === "sent" || msg.status === "delivered"
+    );
+
+    // Mark messages as delivered first (when admin opens conversation)
+    if (hasUndeliveredMessages) {
+      console.log(
+        "[MessagesPage] Marking client messages as delivered for conversation:",
+        conversationId
+      );
+      markMessagesAsDelivered({
+        conversationId,
+        recipientId: adminId, // Admin is the recipient opening the conversation
+      }).then(() => {
+        // After delivered, mark as read
+        if (hasUnreadMessages) {
+          console.log(
+            "[MessagesPage] Marking client messages as read for conversation:",
+            conversationId
+          );
+          markMessagesAsRead({
+            conversationId,
+            userId: adminId, // Admin is viewing the messages
+            senderId: clientId, // Messages sent by the client
+          });
+        }
+      });
+    } else if (hasUnreadMessages) {
+      // If already delivered, just mark as read
+      console.log(
+        "[MessagesPage] Marking client messages as read for conversation:",
+        conversationId
+      );
+      markMessagesAsRead({
+        conversationId,
+        userId: adminId, // Admin is viewing the messages
+        senderId: clientId, // Messages sent by the client
+      });
+    }
+  }, [
+    selectedConversation,
+    messages,
+    markMessagesAsDelivered,
+    markMessagesAsRead,
+    adminId,
+  ]);
+
+  // Handle starting conversation from URL params
+  const handleStartConversationFromParams = async (params: {
+    clientName: string;
+    clientEmail: string;
+    orderId?: string;
+    orderNumber?: string;
+  }) => {
+    console.log(
+      "[MessagesPage] handleStartConversationFromParams called with:",
+      params
+    );
+    setIsInitializing(true);
+
+    try {
+      // First, find the actual client by email in the database
+      console.log(
+        "[MessagesPage] Finding client by email:",
+        params.clientEmail
+      );
+      const clientResult = await findClientByEmail(params.clientEmail).unwrap();
+      console.log("[MessagesPage] findClientByEmail result:", clientResult);
+
+      if (!clientResult) {
+        // Client not found in database
+        console.log("[MessagesPage] Client not found in database");
+        toast({
+          title: "Client Not Found",
+          description: `No client account found with email: ${params.clientEmail}`,
+          variant: "destructive",
+        });
+        // Clear URL params
+        router.replace("/messages");
+        setIsInitializing(false);
+        return;
+      }
+
+      // Use the actual client ID from the database
+      console.log(
+        "[MessagesPage] Creating/getting conversation for client:",
+        clientResult.uid
+      );
+      const result = await getOrCreateConversation({
+        clientId: clientResult.uid,
+        clientName: clientResult.fullName || params.clientName,
+        adminId: adminId,
+        adminName: adminName,
+        orderId: params.orderId,
+        orderNumber: params.orderNumber,
+      }).unwrap();
+
+      console.log("[MessagesPage] getOrCreateConversation result:", result);
+
+      // Convert serialized conversation to Conversation type
+      const conversation: Conversation = {
+        ...result,
+        createdAt: Timestamp.fromDate(new Date(result.createdAt)),
+        updatedAt: Timestamp.fromDate(new Date(result.updatedAt)),
+        lastMessage: result.lastMessage
+          ? {
+              ...result.lastMessage,
+              timestamp: Timestamp.fromDate(
+                new Date(result.lastMessage.timestamp)
+              ),
+            }
+          : undefined,
+      };
+
+      console.log(
+        "[MessagesPage] Setting selected conversation:",
+        conversation.conversationId
+      );
+      setSelectedConversation(conversation);
+
+      // Clear URL params after successful initialization
+      router.replace("/messages");
+
+      toast({
+        title: params.orderId
+          ? "Order Conversation Ready"
+          : "Conversation Ready",
+        description: `Messaging with ${clientResult.fullName}${
+          params.orderNumber ? ` for ${params.orderNumber}` : ""
+        }`,
+      });
+    } catch (error: any) {
+      console.error(
+        "[MessagesPage] Error creating conversation from params:",
+        error
+      );
+      console.error(
+        "[MessagesPage] Error details:",
+        JSON.stringify(error, null, 2)
+      );
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to start conversation. Please try again.",
+        variant: "destructive",
+      });
+      // Clear URL params on error
+      router.replace("/messages");
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  // Handle selecting a conversation
+  const handleSelectConversation = useCallback((conversation: Conversation) => {
+    console.log("[MessagesPage] handleSelectConversation called with:", {
+      conversationId: conversation.conversationId,
+      clientId: conversation.clientId,
+      status: conversation.status,
+    });
+    setSelectedConversation(conversation);
+  }, []);
+
+  // Handle opening new conversation modal
+  const handleNewConversation = useCallback(() => {
+    setIsNewConversationOpen(true);
+  }, []);
+
+  // Handle starting a new conversation
+  const handleStartConversation = async (
+    client: { uid: string; fullName: string; email: string },
+    priority?: "normal" | "high" | "urgent"
+  ) => {
+    console.log("[MessagesPage] handleStartConversation called with:", {
+      client,
+      priority,
+    });
+
+    try {
+      console.log("[MessagesPage] Calling getOrCreateConversation...");
+      const result = await getOrCreateConversation({
+        clientId: client.uid,
+        clientName: client.fullName,
+        adminId: adminId,
+        adminName: adminName,
+        priority,
+      }).unwrap();
+
+      console.log("[MessagesPage] getOrCreateConversation result:", result);
+
+      // Convert serialized conversation to Conversation type
+      const conversation: Conversation = {
+        ...result,
+        createdAt: Timestamp.fromDate(new Date(result.createdAt)),
+        updatedAt: Timestamp.fromDate(new Date(result.updatedAt)),
+        lastMessage: result.lastMessage
+          ? {
+              ...result.lastMessage,
+              timestamp: Timestamp.fromDate(
+                new Date(result.lastMessage.timestamp)
+              ),
+            }
+          : undefined,
+      };
+
+      console.log(
+        "[MessagesPage] Setting selected conversation:",
+        conversation.conversationId
+      );
+      setSelectedConversation(conversation);
+      setIsNewConversationOpen(false);
+
+      toast({
+        title: "Conversation Started",
+        description: `Started conversation with ${client.fullName}`,
+      });
+    } catch (error: any) {
+      console.error("[MessagesPage] Error creating conversation:", error);
+      console.error(
+        "[MessagesPage] Error details:",
+        JSON.stringify(error, null, 2)
+      );
+      toast({
+        title: "Error",
+        description:
+          error.message || "Failed to start conversation. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async (text: string) => {
+    if (!selectedConversation || !adminId) return;
+
+    setIsSending(true);
+    try {
+      await sendMessage({
+        conversationId: selectedConversation.conversationId,
+        senderId: adminId,
+        senderName: adminName,
+        senderRole: "admin",
+        text,
+        recipientId: selectedConversation.clientId,
+      }).unwrap();
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Calculate status counts
+  const statusCounts = {
+    all: conversations.length,
+    active: conversations.filter((c) => c.status === "active").length,
+    archived: conversations.filter((c) => c.status === "archived").length,
+    closed: conversations.filter((c) => c.status === "closed").length,
+  };
+
+  // Filter conversations by tab
+  const filteredConversations =
+    activeTab === "all"
+      ? conversations
+      : conversations.filter((c) => c.status === activeTab);
 
   return (
     <SidebarProvider>
@@ -83,116 +431,106 @@ export default function MessagesPage() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex flex-1 items-center justify-between">
-            <h2 className="text-lg font-semibold">Messages</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">Messages</h2>
+              {totalUnread > 0 && (
+                <Badge variant="default" className="rounded-full">
+                  {totalUnread}
+                </Badge>
+              )}
+            </div>
           </div>
         </header>
+
         <div className="flex flex-1 flex-col p-6">
-          <PageHeader title="Client Messages" description="Communicate with your clients" className="mb-6" />
+          <PageHeader
+            title="Client Messages"
+            description="Communicate with your clients in real-time"
+            className="mb-6"
+          />
 
-          <div className="grid flex-1 gap-6 lg:grid-cols-3">
-            {/* Conversations List */}
-            <Card className="lg:col-span-1">
-              <CardContent className="p-4">
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search conversations..." className="pl-9" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {conversations.map((conversation) => (
-                    <button
-                      key={conversation.id}
-                      className="flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors hover:bg-accent"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback>
-                          {conversation.clientName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 overflow-hidden">
-                        <div className="flex items-center justify-between">
-                          <p className="font-medium">{conversation.clientName}</p>
-                          {conversation.unread > 0 && (
-                            <Badge variant="default" className="h-5 w-5 rounded-full p-0 text-xs">
-                              {conversation.unread}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="truncate text-sm text-muted-foreground">{conversation.lastMessage}</p>
-                        <p className="text-xs text-muted-foreground">{conversation.timestamp}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+          {/* Status Tabs */}
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as ConversationStatus | "all")}
+            className="mb-4"
+          >
+            <TabsList>
+              <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
+              <TabsTrigger value="active">
+                Active ({statusCounts.active})
+              </TabsTrigger>
+              <TabsTrigger value="archived">
+                Archived ({statusCounts.archived})
+              </TabsTrigger>
+              <TabsTrigger value="closed">
+                Closed ({statusCounts.closed})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-            {/* Message Thread */}
-            <Card className="lg:col-span-2">
-              <CardContent className="flex h-full flex-col p-0">
-                {/* Header */}
-                <div className="border-b border-border p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarFallback>SJ</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">Sarah Johnson</p>
-                      <p className="text-sm text-muted-foreground">Order: ORD-001</p>
-                    </div>
-                  </div>
-                </div>
+          {/* Main Content */}
+          {isInitializing ? (
+            <div
+              className="flex flex-1 items-center justify-center"
+              style={{ minHeight: "calc(100vh - 320px)" }}
+            >
+              <Card className="w-full max-w-sm">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-sm font-medium">
+                    Starting conversation...
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Finding client and loading messages
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div
+              className="grid flex-1 gap-6 lg:grid-cols-3"
+              style={{ minHeight: "calc(100vh - 320px)" }}
+            >
+              {/* Conversations List */}
+              <div className="lg:col-span-1 h-full">
+                <ConversationsList
+                  conversations={filteredConversations}
+                  loading={conversationsLoading}
+                  error={conversationsError}
+                  selectedConversationId={
+                    selectedConversation?.conversationId || null
+                  }
+                  adminId={adminId}
+                  onSelectConversation={handleSelectConversation}
+                  onNewConversation={handleNewConversation}
+                />
+              </div>
 
-                {/* Messages */}
-                <div className="flex-1 space-y-4 overflow-y-auto p-4">
-                  {currentMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex gap-3 ${message.senderId.startsWith("admin") ? "flex-row-reverse" : ""}`}
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {message.senderName
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className={`flex-1 ${message.senderId.startsWith("admin") ? "text-right" : ""}`}>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">{message.senderName}</p>
-                          <p className="text-xs text-muted-foreground">{message.timestamp}</p>
-                        </div>
-                        <div
-                          className={`mt-1 inline-block rounded-lg p-3 ${
-                            message.senderId.startsWith("admin") ? "bg-primary text-primary-foreground" : "bg-muted"
-                          }`}
-                        >
-                          <p className="text-sm">{message.text}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Input */}
-                <div className="border-t border-border p-4">
-                  <div className="flex gap-2">
-                    <Input placeholder="Type your message..." />
-                    <Button size="icon">
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Chat Window */}
+              <div className="lg:col-span-2 h-full">
+                <ChatWindow
+                  conversation={selectedConversation}
+                  messages={messages}
+                  loading={messagesLoading}
+                  adminId={adminId}
+                  adminName={adminName}
+                  onSendMessage={handleSendMessage}
+                  isSending={isSending}
+                />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* New Conversation Modal */}
+        <NewConversationModal
+          isOpen={isNewConversationOpen}
+          onClose={() => setIsNewConversationOpen(false)}
+          onStartConversation={handleStartConversation}
+          isLoading={isCreatingConversation}
+        />
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
