@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NotificationSettings } from "@/components/notification-settings";
 import {
   Phone,
   Mail,
@@ -269,6 +270,7 @@ export default function SettingsPage() {
           <Tabs defaultValue="profile" className="space-y-6">
             <TabsList>
               <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="company">Company Info</TabsTrigger>
               <TabsTrigger value="contact">Emergency Contact</TabsTrigger>
             </TabsList>
@@ -586,6 +588,11 @@ export default function SettingsPage() {
                   </form>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* Notifications Tab */}
+            <TabsContent value="notifications" className="space-y-6">
+              <NotificationSettings />
             </TabsContent>
 
             <TabsContent value="company" className="space-y-6">
