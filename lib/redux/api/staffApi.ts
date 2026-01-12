@@ -35,6 +35,10 @@ export interface StaffProfile {
     email: string;
   };
   isActive: boolean;
+  // Admin-editable metrics
+  totalEvents?: number;
+  yearsExperience?: number;
+  successRate?: number;
   createdAt: Timestamp | Date;
   updatedAt: Timestamp | Date;
 }
@@ -97,6 +101,10 @@ const convertStaffData = (doc: any): StaffProfile => {
     reviews: data.reviews || [],
     contact: data.contact || { phone: "", email: "" },
     isActive: data.isActive ?? true,
+    // Admin-editable metrics
+    totalEvents: data.totalEvents || data.portfolio?.length || 0,
+    yearsExperience: data.yearsExperience || 0,
+    successRate: data.successRate || 100,
     createdAt: data.createdAt?.toDate() || new Date(),
     updatedAt: data.updatedAt?.toDate() || new Date(),
   };
