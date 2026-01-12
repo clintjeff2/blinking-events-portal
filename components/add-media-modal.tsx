@@ -44,6 +44,7 @@ import {
 import { validateFiles } from "@/lib/cloudinary/config";
 import { getMediaType } from "@/lib/utils/media";
 import { MediaPreview } from "./media-preview";
+import { notifyNewGallery } from "@/lib/utils/admin-notifications";
 
 interface AddMediaModalProps {
   open: boolean;
@@ -202,6 +203,18 @@ export function AddMediaModal({ open, onOpenChange }: AddMediaModalProps) {
 
       const result = await createMedia(mediaData).unwrap();
       console.log("[Upload] Firebase document created:", result);
+
+      // Send notification to all mobile app users
+      try {
+        await notifyNewGallery({
+          title: formData.title.trim(),
+          category: formData.category,
+          mediaId: result.id,
+        });
+        console.log("[Upload] Notification sent to all users");
+      } catch (notifyError) {
+        console.error("[Upload] Failed to send notification:", notifyError);
+      }
 
       toast({ description: "Media uploaded successfully!" });
       handleClose();
@@ -443,7 +456,7 @@ export function AddMediaModal({ open, onOpenChange }: AddMediaModalProps) {
                     <SelectItem value="none">None</SelectItem>
                     {events.map((event) => (
                       <SelectItem key={event.id} value={event.id}>
-                        {event.title}
+                        {event.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
