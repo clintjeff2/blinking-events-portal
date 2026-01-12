@@ -82,12 +82,19 @@ export default function MediaDetailPage() {
   };
 
   const handleDeleteConfirm = async () => {
+    console.log("[MediaDetail] 🗑️ Starting delete for media:", mediaId);
     try {
       await deleteMedia(mediaId).unwrap();
+      console.log("[MediaDetail] ✅ Delete successful, navigating to /media");
       toast({ description: "Media deleted successfully" });
       router.push("/media");
-    } catch (error) {
-      toast({ variant: "destructive", description: "Failed to delete media" });
+    } catch (error: any) {
+      console.error("[MediaDetail] ❌ Delete failed:", error);
+      toast({
+        variant: "destructive",
+        description:
+          error?.message || error?.data?.message || "Failed to delete media",
+      });
     } finally {
       setDeleteDialogOpen(false);
     }
