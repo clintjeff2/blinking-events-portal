@@ -36,29 +36,40 @@ export interface MediaItem {
 
 export const mediaApi = firebaseApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Get all media
+    // Get all media (only active items)
     getMedia: builder.query<
       MediaItem[],
       { category?: string; isFeatured?: boolean }
     >({
       async queryFn({ category, isFeatured }) {
         try {
-          const mediaRef = collection(db, "media");
-          let q = query(mediaRef);
+          console.log("[MediaAPI] Fetching media with filters:", {
+            category,
+            isFeatured,
+          });
 
-          // Apply filters if provided
-          if (category || isFeatured !== undefined) {
-            const constraints = [];
-            if (category) {
-              constraints.push(where("category", "==", category));
-            }
-            if (isFeatured !== undefined) {
-              constraints.push(where("isFeatured", "==", isFeatured));
-            }
-            q = query(mediaRef, ...constraints);
+          const mediaRef = collection(db, "media");
+
+          // Always filter by isActive = true (soft delete support)
+          const constraints = [where("isActive", "==", true)];
+
+          // Apply additional filters if provided
+          if (category) {
+            constraints.push(where("category", "==", category));
+          }
+          if (isFeatured !== undefined) {
+            constraints.push(where("isFeatured", "==", isFeatured));
           }
 
+          const q = query(mediaRef, ...constraints);
           const snapshot = await getDocs(q);
+
+          console.log(
+            "[MediaAPI] Found",
+            snapshot.docs.length,
+            "active media items"
+          );
+
           const media = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...convertFirestoreData(doc.data()),
@@ -66,6 +77,7 @@ export const mediaApi = firebaseApi.injectEndpoints({
 
           return { data: media };
         } catch (error: any) {
+          console.error("[MediaAPI] Error fetching media:", error);
           return { error: error.message || "Unknown error occurred" };
         }
       },
@@ -203,13 +215,32 @@ export const mediaApi = firebaseApi.injectEndpoints({
     deleteMedia: builder.mutation<void, string>({
       async queryFn(mediaId) {
         try {
+          console.log("[MediaAPI] 🗑️ Deleting media:", mediaId);
+
           const mediaRef = doc(db, "media", mediaId);
+
+          // Check if document exists first
+          const docSnap = await getDoc(mediaRef);
+          if (!docSnap.exists()) {
+            console.error("[MediaAPI] ❌ Media document not found:", mediaId);
+            return { error: "Media not found" };
+          }
+
+          // Soft delete by setting isActive to false
           await updateDoc(mediaRef, {
             isActive: false,
             updatedAt: withTimestamp({}, true).updatedAt,
           });
-          return { data: undefined };
+
+          console.log(
+            "[MediaAPI] ✅ Media soft-deleted successfully:",
+            mediaId
+          );
+
+          // Return null instead of undefined for void mutations
+          return { data: null as unknown as void };
         } catch (error: any) {
+          console.error("[MediaAPI] ❌ Error deleting media:", error);
           return { error: error.message };
         }
       },
