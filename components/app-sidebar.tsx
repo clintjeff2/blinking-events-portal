@@ -17,6 +17,9 @@ import {
   Megaphone,
   Sparkles,
   LogOut,
+  Store,
+  Package,
+  ShoppingBag,
 } from "lucide-react";
 
 import {
@@ -82,6 +85,19 @@ const managementItems = [
     title: "Testimonials",
     url: "/testimonials",
     icon: Star,
+  },
+];
+
+const shopItems = [
+  {
+    title: "Shop Products",
+    url: "/shop",
+    icon: Package,
+  },
+  {
+    title: "Shop Orders",
+    url: "/shop/orders",
+    icon: ShoppingBag,
   },
 ];
 
@@ -188,6 +204,30 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith(item.url)}
+                  >
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Shop</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {shopItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      pathname === item.url ||
+                      (item.url === "/shop" && pathname === "/shop")
+                    }
                   >
                     <Link href={item.url}>
                       <item.icon className="h-4 w-4" />
