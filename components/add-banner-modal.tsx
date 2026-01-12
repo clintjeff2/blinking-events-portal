@@ -31,6 +31,7 @@ import {
   CLOUDINARY_LIMITS_READABLE,
   isImage,
 } from "@/lib/cloudinary/config";
+import { notifyNewBanner } from "@/lib/utils/admin-notifications";
 
 interface AddBannerModalProps {
   open: boolean;
@@ -233,9 +234,24 @@ export function AddBannerModal({
 
       console.log("[Add Banner Modal] Creating banner with data:", bannerData);
 
-      await createBanner(bannerData).unwrap();
+      const result = await createBanner(bannerData).unwrap();
 
       console.log("[Add Banner Modal] Banner created successfully");
+
+      // Send notification to all mobile app users
+      try {
+        await notifyNewBanner({
+          title: formData.title.trim(),
+          description: formData.description.trim(),
+          bannerId: result?.id || "",
+        });
+        console.log("[Add Banner Modal] Notification sent to all users");
+      } catch (notifyError) {
+        console.error(
+          "[Add Banner Modal] Failed to send notification:",
+          notifyError
+        );
+      }
 
       toast({
         title: "Success",
