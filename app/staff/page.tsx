@@ -46,6 +46,7 @@ import {
 } from "@/lib/redux/api/staffApi";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { notifyNewStaff } from "@/lib/utils/admin-notifications";
 
 export default function StaffPage() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -62,7 +63,20 @@ export default function StaffPage() {
 
   const handleAddStaff = async (data: CreateStaffInput) => {
     try {
-      await createStaff(data).unwrap();
+      const result = await createStaff(data).unwrap();
+
+      // Send notification to all mobile app users
+      try {
+        await notifyNewStaff({
+          fullName: data.fullName,
+          categories: data.categories,
+          staffProfileId: result?.id || result?.staffProfileId || "",
+        });
+        console.log("[StaffPage] Notification sent to all users");
+      } catch (notifyError) {
+        console.error("[StaffPage] Failed to send notification:", notifyError);
+      }
+
       toast.success("Staff member added successfully!");
       setShowAddModal(false);
     } catch (error: any) {
