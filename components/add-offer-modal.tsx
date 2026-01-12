@@ -21,6 +21,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateOfferMutation } from "@/lib/redux/api/marketingApi";
+import { notifyNewOffer } from "@/lib/utils/admin-notifications";
 
 interface AddOfferModalProps {
   open: boolean;
@@ -127,7 +128,22 @@ export function AddOfferModal({
         ...(formData.terms.trim() && { terms: formData.terms.trim() }),
       };
 
-      await createOffer(offerData).unwrap();
+      const result = await createOffer(offerData).unwrap();
+
+      // Send notification to all mobile app users
+      try {
+        await notifyNewOffer({
+          title: formData.title.trim(),
+          discount: formData.discount.trim(),
+          offerId: result?.id || "",
+        });
+        console.log("[Add Offer Modal] Notification sent to all users");
+      } catch (notifyError) {
+        console.error(
+          "[Add Offer Modal] Failed to send notification:",
+          notifyError
+        );
+      }
 
       toast({
         title: "Success",
