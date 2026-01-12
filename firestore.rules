@@ -73,7 +73,9 @@ service cloud.firestore {
                      (resource.data.recipientId == request.auth.uid || 
                       isAdmin());
       allow create: if isAdmin();
-      allow update: if isAdmin();
+      // Allow users to update their own notifications (mark as read)
+      allow update: if isSignedIn() && 
+                       (resource.data.recipientId == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
     }
     
