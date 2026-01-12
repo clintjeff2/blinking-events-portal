@@ -25,6 +25,7 @@ import { Plus, X, Upload, ImageIcon, Loader2 } from "lucide-react";
 import { useCreateServiceMutation } from "@/lib/redux/api/servicesApi";
 import { useToast } from "@/hooks/use-toast";
 import { uploadMultipleFilesClient } from "@/lib/cloudinary/upload";
+import { notifyNewService } from "@/lib/utils/admin-notifications";
 
 interface ServicePackage {
   name: string;
@@ -247,6 +248,19 @@ export function AddServiceModal({
       const result = await createService(serviceData).unwrap();
 
       console.log("[AddService] Service created successfully:", result);
+
+      // Send notification to all mobile app users
+      try {
+        await notifyNewService({
+          name: formData.name,
+          category: formData.category,
+          serviceId: result.serviceId || result.id,
+        });
+        console.log("[AddService] Notification sent to all users");
+      } catch (notifyError) {
+        console.error("[AddService] Failed to send notification:", notifyError);
+        // Don't fail the whole operation if notification fails
+      }
 
       toast({
         title: "Service created",
