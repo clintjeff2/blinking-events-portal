@@ -26,6 +26,7 @@ import { db } from "@/lib/firebase/config";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
+import { notifyNewEvent } from "@/lib/utils/admin-notifications";
 
 interface Service {
   id: string;
@@ -169,7 +170,25 @@ export function AddEventModal({
         testimonials: [],
       };
 
-      await createEvent(eventData).unwrap();
+      const result = await createEvent(eventData).unwrap();
+
+      // Send notification to all mobile app users if event is published
+      if (formData.isPublished) {
+        try {
+          await notifyNewEvent({
+            name: formData.name.trim(),
+            category: formData.category,
+            venue: formData.venue.trim(),
+            eventId: result?.eventId || result?.id || "",
+          });
+          console.log("[Add Event Modal] Notification sent to all users");
+        } catch (notifyError) {
+          console.error(
+            "[Add Event Modal] Failed to send notification:",
+            notifyError
+          );
+        }
+      }
 
       toast({
         title: "Success",
