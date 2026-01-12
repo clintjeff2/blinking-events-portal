@@ -26,6 +26,7 @@ import {
   CLOUDINARY_LIMITS_READABLE,
 } from "@/lib/cloudinary/config";
 import { toast } from "sonner";
+import { notifyNewStaff } from "@/lib/utils/admin-notifications";
 
 interface AddStaffModalProps {
   open: boolean;
