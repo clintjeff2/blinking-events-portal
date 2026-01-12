@@ -609,4 +609,103 @@ Push tokens are routed based on `tokenType` field in `users.fcmTokens`:
 
 ---
 
+## 11. Shop Products Collection (`shopProducts`)
+
+**Purpose:** Stores all products available for sale in the shop (wedding dresses, cars, decorations, etc.).
+
+**Document ID:** Auto-generated
+
+### Fields:
+
+- `id` (string): Document ID
+- `name` (string): Product name
+- `description` (string): Detailed product description
+- `category` (string): Product category - `'Wedding Dresses' | 'Suits & Tuxedos' | 'Accessories' | 'Decorations' | 'Vehicles' | 'Furniture' | 'Lighting' | 'Flowers' | 'Catering Equipment' | 'Audio/Visual' | 'Other'`
+- `price` (number): Product price
+- `currency` (string, default: 'XAF'): Currency code for the price - `'XAF' | 'FCFA' | 'USD' | 'EUR'`. XAF/FCFA is the default currency for Cameroon.
+- `quantity` (number): Available stock quantity
+- `images` (array of ProductImage): Product images
+  ```typescript
+  interface ProductImage {
+    url: string; // Cloudinary URL
+    publicId?: string; // Cloudinary public ID for deletion
+    alt?: string; // Alt text for accessibility
+    isThumbnail?: boolean; // Whether this image is the main thumbnail
+  }
+  ```
+- `thumbnailUrl` (string, optional): Main display image URL (usually first image or marked thumbnail)
+- `isActive` (boolean): Whether the product is visible in the shop
+- `isFeatured` (boolean): Whether to feature this product prominently
+- `createdAt` (timestamp, optional): Document creation timestamp (may not exist for older documents)
+- `updatedAt` (timestamp): Last update timestamp (always exists)
+
+### Usage Notes:
+
+- The first image in the `images` array is used as the main product image
+- Products with `quantity <= 5` are marked as "Low Stock"
+- Products with `quantity === 0` are marked as "Out of Stock"
+- `isActive: false` hides the product from the shop but keeps it in the database
+
+---
+
+## 12. Shop Orders Collection (`shopOrders`)
+
+**Purpose:** Stores customer orders from the shop. These are separate from event service orders.
+
+**Document ID:** Auto-generated
+
+### Fields:
+
+- `id` (string): Document ID
+- `orderId` (string): Human-readable order ID (format: `SO-XXX`, e.g., `SO-001`)
+- `clientId` (string): Reference to `users.uid`
+- `clientName` (string): Customer's full name
+- `clientEmail` (string): Customer's email address
+- `clientPhone` (string, optional): Customer's phone number
+- `items` (array of ShopOrderItem): Ordered products
+  ```typescript
+  interface ShopOrderItem {
+    productId: string; // Reference to shopProducts
+    productName: string; // Product name (denormalized for display)
+    productImage?: string; // Product image URL (denormalized)
+    quantity: number; // Quantity ordered
+    price: number; // Price per unit at time of order
+    subtotal: number; // quantity * price
+  }
+  ```
+- `totalAmount` (number): Total order amount
+- `currency` (string, default: 'XAF'): Currency code for the order total - `'XAF' | 'FCFA' | 'USD' | 'EUR'`
+- `status` (string): `'pending' | 'confirmed' | 'completed' | 'cancelled'`
+- `notes` (string, optional): Admin notes about the order
+- `createdAt` (timestamp): When the order was placed
+- `updatedAt` (timestamp): Last update timestamp
+- `confirmedAt` (timestamp, optional): When order was confirmed
+- `completedAt` (timestamp, optional): When order was marked complete (payment received)
+- `cancelledAt` (timestamp, optional): When order was cancelled
+
+### Status Flow:
+
+```
+pending -> confirmed -> completed
+    |         |
+    v         v
+cancelled  cancelled
+```
+
+### Status Descriptions:
+
+- **pending**: Order placed, awaiting admin confirmation
+- **confirmed**: Admin confirmed the order, awaiting payment
+- **completed**: Payment received, order fulfilled
+- **cancelled**: Order was cancelled
+
+### Usage Notes:
+
+- Shop orders use physical payment (not in-app payment)
+- Admin marks orders as "completed" after receiving physical payment
+- Order items are denormalized (product info stored in order) to preserve order history even if products change
+- The `orderId` is auto-generated and increments (SO-001, SO-002, etc.)
+
+---
+
 **This file should be copied into both the web and React Native codebases for dev reference.**
