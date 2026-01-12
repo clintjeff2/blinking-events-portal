@@ -37,6 +37,8 @@ export const firebaseApi = createApi({
     "NotificationPreferences",
     "Analytics",
     "Marketing",
+    "ShopProducts",
+    "ShopOrders",
   ],
   endpoints: () => ({}),
 });
