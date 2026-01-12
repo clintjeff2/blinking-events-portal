@@ -64,6 +64,11 @@ export function EditStaffModal({
     availability: [] as AvailabilitySlot[],
     contact: { phone: "", email: "" },
     isActive: true,
+    // Admin-editable metrics
+    rating: 0,
+    totalEvents: 0,
+    yearsExperience: 0,
+    successRate: 100,
   });
 
   // Portfolio form states
@@ -120,6 +125,11 @@ export function EditStaffModal({
         availability: staff.availability || [],
         contact: staff.contact,
         isActive: staff.isActive,
+        // Admin-editable metrics (default values if not set)
+        rating: (staff as any).rating || 0,
+        totalEvents: (staff as any).totalEvents || staff.portfolio?.length || 0,
+        yearsExperience: (staff as any).yearsExperience || 0,
+        successRate: (staff as any).successRate || 100,
       });
       // Reset upload states when staff changes
       setSelectedFile(null);
@@ -1304,6 +1314,117 @@ export function EditStaffModal({
                     })
                   }
                 />
+              </div>
+            </div>
+
+            {/* Admin-Only: Staff Metrics Section */}
+            <div className="space-y-4 p-4 border rounded-lg bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+                  📊 Admin Controls - Staff Metrics
+                </h3>
+                <Badge variant="secondary" className="text-xs">
+                  Admin Only
+                </Badge>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                These metrics are only editable by administrators and displayed
+                to clients.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rating">Rating (0-5)</Label>
+                  <Input
+                    id="rating"
+                    type="number"
+                    min="0"
+                    max="5"
+                    step="0.1"
+                    value={formData.rating}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        rating: Math.min(
+                          5,
+                          Math.max(0, parseFloat(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    className="bg-white dark:bg-gray-800"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Average rating shown to clients (e.g., 4.8)
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="totalEvents">Total Events Completed</Label>
+                  <Input
+                    id="totalEvents"
+                    type="number"
+                    min="0"
+                    value={formData.totalEvents}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        totalEvents: Math.max(0, parseInt(e.target.value) || 0),
+                      })
+                    }
+                    className="bg-white dark:bg-gray-800"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Number of events they have worked on
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="yearsExperience">Years of Experience</Label>
+                  <Input
+                    id="yearsExperience"
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={formData.yearsExperience}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        yearsExperience: Math.max(
+                          0,
+                          parseInt(e.target.value) || 0
+                        ),
+                      })
+                    }
+                    className="bg-white dark:bg-gray-800"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Professional experience in years
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="successRate">Success Rate (%)</Label>
+                  <Input
+                    id="successRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.successRate}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        successRate: Math.min(
+                          100,
+                          Math.max(0, parseInt(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    className="bg-white dark:bg-gray-800"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Client satisfaction/success percentage
+                  </p>
+                </div>
               </div>
             </div>
 
